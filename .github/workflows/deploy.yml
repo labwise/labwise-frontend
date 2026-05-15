@@ -1,0 +1,25 @@
+name: Deploy Frontend to EC2
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd labwise-frontend
+            git pull origin main
+            npm ci
+            npm run build
+            pm2 restart labwise-frontend || pm2 start npm --name labwise-frontend -- start
+            pm2 save
