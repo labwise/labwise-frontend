@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
@@ -26,6 +27,17 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+interface SavedAddress {
+  id: string;
+  label: string | null;
+  recipientName: string;
+  phone: string;
+  postalCode: string;
+  address: string;
+  addressDetail: string | null;
+  isDefault: boolean;
+}
+
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -33,6 +45,9 @@ export default function CheckoutPage() {
   const [pointInput, setPointInput] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [showAddressPicker, setShowAddressPicker] = useState(false);
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -54,6 +69,23 @@ export default function CheckoutPage() {
     if (!user) router.push('/login');
     if (items.length === 0) router.push('/cart');
   }, [user, items]);
+
+  useEffect(() => {
+    api.get('/shipping-addresses').then(({ data }) => {
+      setSavedAddresses(data);
+      const def = data.find((a: SavedAddress) => a.isDefault) ?? data[0];
+      if (def) fillFromAddress(def);
+    }).catch(() => {});
+  }, []);
+
+  const fillFromAddress = (addr: SavedAddress) => {
+    setValue('recipientName', addr.recipientName);
+    setValue('phone', addr.phone);
+    setValue('zipCode', addr.postalCode);
+    setValue('address', addr.address);
+    setValue('addressDetail', addr.addressDetail ?? '');
+    setSelectedAddressId(addr.id);
+  };
 
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
@@ -80,7 +112,6 @@ export default function CheckoutPage() {
         return;
       }
 
-      // TossPayments 결제창 로드
       const tossPayments = (window as any).TossPayments;
       if (!tossPayments) {
         setError('결제 모듈 로드에 실패했습니다.');
@@ -112,7 +143,47 @@ export default function CheckoutPage() {
           <div className="space-y-6 lg:col-span-2">
             {/* 배송지 */}
             <div className="rounded-xl border border-gray-200 bg-white p-6">
-              <h2 className="mb-4 font-semibold text-gray-900">배송지 정보</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-semibold text-gray-900">배송지 정보</h2>
+                {savedAddresses.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAddressPicker((v) => !v)}
+                    className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    배송지 선택
+                  </button>
+                )}
+              </div>
+
+              {showAddressPicker && savedAddresses.length > 0 && (
+                <div className="mb-4 space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                  {savedAddresses.map((addr) => (
+                    <label
+                      key={addr.id}
+                      className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${selectedAddressId === addr.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 bg-white'}`}
+                    >
+                      <input
+                        type="radio"
+                        name="savedAddress"
+                        checked={selectedAddressId === addr.id}
+                        onChange={() => { fillFromAddress(addr); setShowAddressPicker(false); }}
+                        className="mt-0.5"
+                      />
+                      <div className="text-sm">
+                        <p className="font-medium text-gray-900">
+                          {addr.label ?? addr.recipientName}
+                          {addr.isDefault && <span className="ml-2 text-xs text-blue-600 font-normal">기본</span>}
+                        </p>
+                        <p className="text-gray-500">{addr.recipientName} · {addr.phone}</p>
+                        <p className="text-gray-500">[{addr.postalCode}] {addr.address} {addr.addressDetail ?? ''}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-4">
                 <Input label="받는 분" {...register('recipientName')} error={errors.recipientName?.message} />
                 <Input label="연락처" {...register('phone')} placeholder="010-1234-5678" error={errors.phone?.message} />

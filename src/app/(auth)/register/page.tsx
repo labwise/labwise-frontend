@@ -21,6 +21,9 @@ const schema = z
     passwordConfirm: z.string(),
     phone: z.string().min(10, '휴대폰 번호를 입력하세요'),
     otpCode: z.string().length(6, '인증번호 6자리를 입력하세요'),
+    postalCode: z.string().min(5, '우편번호를 입력하세요'),
+    address: z.string().min(5, '주소를 입력하세요'),
+    addressDetail: z.string().optional(),
   })
   .refine((d) => d.password === d.passwordConfirm, {
     message: '비밀번호가 일치하지 않습니다',
@@ -30,6 +33,26 @@ const schema = z
 type FormData = z.infer<typeof schema>;
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+
+function openDaumPostcode(onSelect: (postcode: string, address: string) => void) {
+  const url = 'https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js';
+  const load = () => {
+    new (window as any).daum.Postcode({
+      oncomplete(data: any) {
+        onSelect(data.zonecode, data.roadAddress || data.jibunAddress);
+      },
+    }).open();
+  };
+
+  if ((window as any).daum?.Postcode) {
+    load();
+    return;
+  }
+  const script = document.createElement('script');
+  script.src = url;
+  script.onload = load;
+  document.head.appendChild(script);
+}
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -45,6 +68,7 @@ export default function RegisterPage() {
     register,
     handleSubmit,
     getValues,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
@@ -87,6 +111,13 @@ export default function RegisterPage() {
     }
   };
 
+  const handleSearchPostcode = () => {
+    openDaumPostcode((postcode, address) => {
+      setValue('postalCode', postcode, { shouldValidate: true });
+      setValue('address', address, { shouldValidate: true });
+    });
+  };
+
   const onSubmit = async (data: FormData) => {
     if (!otpVerified) {
       setError('휴대폰 인증을 완료해주세요.');
@@ -99,6 +130,9 @@ export default function RegisterPage() {
         password: data.password,
         name: data.name,
         phone: data.phone,
+        postalCode: data.postalCode,
+        address: data.address,
+        addressDetail: data.addressDetail,
       });
       setAuth(res.user, res.accessToken, res.refreshToken);
       router.push('/');
@@ -119,7 +153,6 @@ export default function RegisterPage() {
         </div>
 
         <div className="rounded-xl bg-white p-8 shadow-sm border border-gray-200">
-          {/* 활성화된 소셜 로그인만 표시 */}
           {hasSocial && (
             <>
               <div className="space-y-2 mb-6">
@@ -247,6 +280,46 @@ export default function RegisterPage() {
             {otpError && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{otpError}</p>
             )}
+
+            {/* 배송지 */}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">기본 배송지</p>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">우편번호</label>
+                  <div className="flex gap-2">
+                    <input
+                      {...register('postalCode')}
+                      readOnly
+                      placeholder="우편번호"
+                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchPostcode}
+                      className="shrink-0 rounded-lg bg-gray-800 px-4 py-2 text-sm text-white hover:bg-gray-700"
+                    >
+                      주소 검색
+                    </button>
+                  </div>
+                  {errors.postalCode && <p className="mt-1 text-xs text-red-500">{errors.postalCode.message}</p>}
+                </div>
+                <div>
+                  <input
+                    {...register('address')}
+                    readOnly
+                    placeholder="기본 주소"
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 focus:outline-none"
+                  />
+                  {errors.address && <p className="mt-1 text-xs text-red-500">{errors.address.message}</p>}
+                </div>
+                <input
+                  {...register('addressDetail')}
+                  placeholder="상세 주소 (동, 호수 등)"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
 
             {error && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>
