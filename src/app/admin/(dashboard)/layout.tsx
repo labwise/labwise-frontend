@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Plug,
   Star,
+  Layers,
 } from 'lucide-react';
 
 const navItems = [
@@ -21,6 +22,7 @@ const navItems = [
   { href: '/admin/products', label: '상품 관리', icon: Package },
   { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
   { href: '/admin/users', label: '회원 관리', icon: Users },
+  { href: '/admin/groups', label: '그룹 관리', icon: Layers },
   { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
   { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
   { href: '/admin/featured', label: '추천 상품', icon: Star },

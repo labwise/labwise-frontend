@@ -172,7 +172,7 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center justify-center">
-            <Logo className="h-14 w-auto" />
+            <Logo className="h-16 w-auto" />
           </Link>
           <h2 className="mt-5 text-xl font-semibold text-gray-700">회원가입</h2>
         </div>

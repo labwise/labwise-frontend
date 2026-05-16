@@ -26,7 +26,7 @@ export default function PointMallPage() {
       const { data } = await api.get('/point-mall/products');
       return data;
     },
-    enabled: !!user?.isVerified,
+    enabled: !!user?.hasPointmallAccess,
   });
 
   if (user === null) {
@@ -34,7 +34,7 @@ export default function PointMallPage() {
     return null;
   }
 
-  if (!user.isVerified) {
+  if (!user.hasPointmallAccess) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 text-center">
         <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-10 inline-block">

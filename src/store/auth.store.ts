@@ -8,6 +8,7 @@ interface AuthUser {
   pointBalance: number;
   groupId: string;
   isVerified: boolean;
+  hasPointmallAccess: boolean;
 }
 
 interface AuthState {

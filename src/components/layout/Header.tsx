@@ -29,7 +29,7 @@ export function Header() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center">
-            <Logo className="h-11 w-auto" />
+            <Logo className="h-14 w-auto" />
           </Link>
 
           <div className="mx-8 hidden flex-1 max-w-lg md:block">
@@ -97,7 +97,7 @@ export function Header() {
             <Link href="/products?category=reagents" className="text-gray-600 hover:text-blue-600">
               시약
             </Link>
-            {user?.isVerified && (
+            {user?.hasPointmallAccess && (
               <Link href="/point-mall" className="font-medium text-blue-600 hover:text-blue-700">
                 와이즈몰
               </Link>
