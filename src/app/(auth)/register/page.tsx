@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Package, ChevronRight } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useActiveIntegrations } from '@/hooks/useActiveIntegrations';
+import { Logo } from '@/components/Logo';
 
 const schema = z
   .object({
@@ -170,11 +171,10 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <Link href="/" className="inline-flex items-center gap-2">
-            <Package className="h-8 w-8 text-blue-600" />
-            <span className="text-2xl font-bold text-gray-900">랩와이즈</span>
+          <Link href="/" className="inline-flex items-center justify-center">
+            <Logo className="h-12 w-auto" />
           </Link>
-          <h2 className="mt-4 text-xl font-semibold text-gray-700">회원가입</h2>
+          <h2 className="mt-5 text-xl font-semibold text-gray-700">회원가입</h2>
         </div>
 
         <div className="rounded-xl bg-white p-8 shadow-sm border border-gray-200">

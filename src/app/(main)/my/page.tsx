@@ -31,11 +31,11 @@ export default function MyPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Star className="h-5 w-5 text-blue-600" />
-            <h2 className="font-semibold text-blue-900">보유 포인트</h2>
+            <h2 className="font-semibold text-blue-900">보유 와이즈</h2>
           </div>
-          <p className="text-2xl font-bold text-blue-600">{formatPrice(user.pointBalance)}</p>
+          <p className="text-2xl font-bold text-blue-600">{formatPrice(user.pointBalance)}W</p>
         </div>
-        <p className="mt-2 text-sm text-blue-500">포인트는 주문 시 사용할 수 있습니다</p>
+        <p className="mt-2 text-sm text-blue-500">와이즈는 주문 시 할인에 사용할 수 있습니다</p>
       </div>
     </div>
   );

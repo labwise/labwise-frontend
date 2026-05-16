@@ -49,7 +49,7 @@ export default function PointMallOrdersPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-900">포인트몰 주문</h1>
+        <h1 className="text-xl font-bold text-gray-900">와이즈몰 주문</h1>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
@@ -66,7 +66,7 @@ export default function PointMallOrdersPage() {
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="text-left px-4 py-3 text-gray-500 font-medium">회원</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">상품</th>
-              <th className="text-right px-4 py-3 text-gray-500 font-medium">포인트</th>
+              <th className="text-right px-4 py-3 text-gray-500 font-medium">와이즈</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">배송지</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">상태 변경</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">신청일</th>

@@ -17,8 +17,8 @@ export function Footer() {
             <h3 className="mb-3 text-sm font-semibold text-gray-900">회원 서비스</h3>
             <ul className="space-y-2 text-sm text-gray-500">
               <li><Link href="/my/orders" className="hover:text-blue-600">주문 내역</Link></li>
-              <li><Link href="/my/points" className="hover:text-blue-600">포인트 내역</Link></li>
-              <li><Link href="/point-mall" className="hover:text-blue-600">포인트몰</Link></li>
+              <li><Link href="/my/points" className="hover:text-blue-600">와이즈 내역</Link></li>
+              <li><Link href="/point-mall" className="hover:text-blue-600">와이즈몰</Link></li>
             </ul>
           </div>
           <div>

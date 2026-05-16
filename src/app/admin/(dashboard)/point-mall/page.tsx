@@ -89,7 +89,7 @@ export default function PointMallProductsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-bold text-gray-900">포인트몰 상품</h1>
+        <h1 className="text-xl font-bold text-gray-900">와이즈몰 상품</h1>
         <div className="flex gap-2">
           <Link href="/admin/point-mall/orders"
             className="px-4 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
@@ -124,7 +124,7 @@ export default function PointMallProductsPage() {
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
                 <div>
-                  <label className="block text-xs text-gray-500 mb-1">필요 포인트 *</label>
+                  <label className="block text-xs text-gray-500 mb-1">필요 와이즈 *</label>
                   <input type="number" value={form.requiredPoints} onChange={(e) => set('requiredPoints', e.target.value)} required
                     className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
@@ -167,7 +167,7 @@ export default function PointMallProductsPage() {
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="text-left px-4 py-3 text-gray-500 font-medium">상품명</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">카테고리</th>
-              <th className="text-right px-4 py-3 text-gray-500 font-medium">필요 포인트</th>
+              <th className="text-right px-4 py-3 text-gray-500 font-medium">필요 와이즈</th>
               <th className="text-right px-4 py-3 text-gray-500 font-medium">재고</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">상태</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">관리</th>

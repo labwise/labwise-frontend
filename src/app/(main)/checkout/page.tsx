@@ -203,9 +203,9 @@ export default function CheckoutPage() {
             {/* 포인트 */}
             {user && user.pointBalance > 0 && (
               <div className="rounded-xl border border-gray-200 bg-white p-6">
-                <h2 className="mb-4 font-semibold text-gray-900">포인트 사용</h2>
+                <h2 className="mb-4 font-semibold text-gray-900">와이즈 사용</h2>
                 <div className="flex items-center gap-3">
-                  <p className="text-sm text-gray-500">보유 포인트: <span className="font-medium text-blue-600">{formatPrice(user.pointBalance)}P</span></p>
+                  <p className="text-sm text-gray-500">보유 와이즈: <span className="font-medium text-blue-600">{formatPrice(user.pointBalance)}W</span></p>
                   <div className="flex flex-1 items-center gap-2">
                     <input
                       type="number"
@@ -271,7 +271,7 @@ export default function CheckoutPage() {
                 </div>
                 {appliedPoints > 0 && (
                   <div className="flex justify-between text-blue-600">
-                    <span>포인트 할인</span>
+                    <span>와이즈 할인</span>
                     <span>-{formatPrice(appliedPoints)}</span>
                   </div>
                 )}

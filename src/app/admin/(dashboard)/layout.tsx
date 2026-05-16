@@ -21,7 +21,7 @@ const navItems = [
   { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
   { href: '/admin/users', label: '회원 관리', icon: Users },
   { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
-  { href: '/admin/point-mall', label: '포인트몰', icon: Gift },
+  { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
   { href: '/admin/integrations', label: '연동 관리', icon: Plug },
 ];
 

@@ -33,13 +33,13 @@ export default function PointMallPage() {
       <div className="mb-8 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">포인트몰</h1>
-            <p className="mt-1 text-blue-100">포인트로 상품을 교환하세요 (인증회원 전용)</p>
+            <h1 className="text-2xl font-bold">와이즈몰</h1>
+            <p className="mt-1 text-blue-100">와이즈로 상품을 교환하세요 (인증회원 전용)</p>
           </div>
           {user && (
             <div className="text-right">
-              <p className="text-sm text-blue-200">보유 포인트</p>
-              <p className="text-2xl font-bold">{formatPrice(user.pointBalance)}P</p>
+              <p className="text-sm text-blue-200">보유 와이즈</p>
+              <p className="text-2xl font-bold">{formatPrice(user.pointBalance)}W</p>
             </div>
           )}
         </div>
@@ -81,7 +81,7 @@ export default function PointMallPage() {
                   <p className="mb-auto text-xs text-gray-400">{product.category}</p>
                   <div className="mt-3">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-blue-600">{formatPrice(product.requiredPoints)}P</p>
+                      <p className="font-bold text-blue-600">{formatPrice(product.requiredPoints)}W</p>
                       {product.referencePrice && (
                         <p className="text-xs text-gray-400">약 {formatPrice(product.referencePrice)}</p>
                       )}
@@ -92,7 +92,7 @@ export default function PointMallPage() {
                       disabled={product.stockQuantity === 0 || !canAfford}
                       onClick={() => router.push(`/point-mall/order?productId=${product.id}`)}
                     >
-                      {!user ? '로그인 필요' : !canAfford ? '포인트 부족' : '교환하기'}
+                      {!user ? '로그인 필요' : !canAfford ? '와이즈 부족' : '교환하기'}
                     </Button>
                   </div>
                 </div>

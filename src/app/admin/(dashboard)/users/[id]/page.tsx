@@ -64,7 +64,7 @@ export default function UserDetailPage() {
         amount: Number(pointAmount),
         reason: pointReason,
       });
-      setMsg(`포인트 ${Number(pointAmount) > 0 ? '+' : ''}${pointAmount}P 조정 완료`);
+      setMsg(`와이즈 ${Number(pointAmount) > 0 ? '+' : ''}${pointAmount}W 조정 완료`);
       setUser((u) => u ? { ...u, pointBalance: (u.pointBalance ?? 0) + Number(pointAmount) } : u);
       setPointAmount('');
       setPointReason('');
@@ -94,7 +94,7 @@ export default function UserDetailPage() {
             {[
               ['이름', user.name], ['이메일', user.email], ['전화번호', user.phone],
               ['사업자명', user.businessName], ['사업자번호', user.businessNumber],
-              ['포인트 잔액', `${(user.pointBalance ?? 0).toLocaleString()}P`],
+              ['와이즈 잔액', `${(user.pointBalance ?? 0).toLocaleString()}W`],
               ['가입일', new Date(user.createdAt).toLocaleString('ko-KR')],
             ].filter(([, v]) => v).map(([k, v]) => (
               <div key={k} className="flex justify-between">
@@ -158,14 +158,14 @@ export default function UserDetailPage() {
 
           {/* Point Adjustment */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-            <h2 className="font-semibold text-gray-800 mb-1">포인트 조정</h2>
+            <h2 className="font-semibold text-gray-800 mb-1">와이즈 조정</h2>
             <p className="text-xs text-gray-400 mb-4">
-              현재 잔액: <strong>{(user.pointBalance ?? 0).toLocaleString()}P</strong>
+              현재 잔액: <strong>{(user.pointBalance ?? 0).toLocaleString()}W</strong>
               &nbsp;| 음수 입력 시 차감
             </p>
             <form onSubmit={handlePointAdjust} className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-500 mb-1">조정 포인트</label>
+                <label className="block text-xs text-gray-500 mb-1">조정 와이즈</label>
                 <input
                   type="number"
                   value={pointAmount}
@@ -190,7 +190,7 @@ export default function UserDetailPage() {
                 disabled={pointSaving}
                 className="w-full bg-emerald-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
               >
-                {pointSaving ? '처리 중...' : '포인트 조정'}
+                {pointSaving ? '처리 중...' : '와이즈 조정'}
               </button>
             </form>
           </div>

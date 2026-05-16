@@ -81,7 +81,7 @@ export default function AdminUsersPage() {
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="text-left px-4 py-3 text-gray-500 font-medium">회원</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">그룹</th>
-              <th className="text-right px-4 py-3 text-gray-500 font-medium">포인트</th>
+              <th className="text-right px-4 py-3 text-gray-500 font-medium">와이즈</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">상태</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">가입일</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">상세</th>
@@ -100,7 +100,7 @@ export default function AdminUsersPage() {
                     <p className="text-xs text-gray-400">{u.email}</p>
                   </td>
                   <td className="px-4 py-3 text-gray-500">{u.group?.name ?? '일반'}</td>
-                  <td className="px-4 py-3 text-right font-medium">{(u.pointBalance ?? 0).toLocaleString()}P</td>
+                  <td className="px-4 py-3 text-right font-medium">{(u.pointBalance ?? 0).toLocaleString()}W</td>
                   <td className="px-4 py-3 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[u.status] ?? 'bg-gray-100 text-gray-500'}`}>
                       {STATUS_LABELS[u.status] ?? u.status}
