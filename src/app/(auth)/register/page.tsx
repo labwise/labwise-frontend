@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Package } from 'lucide-react';
+import { Package, ChevronRight } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { Input } from '@/components/ui/Input';
@@ -54,6 +54,14 @@ function openDaumPostcode(onSelect: (postcode: string, address: string) => void)
   document.head.appendChild(script);
 }
 
+interface Agreements {
+  all: boolean;
+  terms: boolean;
+  privacy: boolean;
+  marketing: boolean;
+  age: boolean;
+}
+
 export default function RegisterPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
@@ -62,7 +70,20 @@ export default function RegisterPage() {
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
+  const [agreements, setAgreements] = useState<Agreements>({
+    all: false, terms: false, privacy: false, marketing: false, age: false,
+  });
   const { hasGoogle, hasKakao, hasNaver, hasSocial } = useActiveIntegrations();
+
+  const toggleAll = (checked: boolean) => {
+    setAgreements({ all: checked, terms: checked, privacy: checked, marketing: checked, age: checked });
+  };
+
+  const toggleOne = (key: keyof Omit<Agreements, 'all'>, checked: boolean) => {
+    const next = { ...agreements, [key]: checked };
+    next.all = next.terms && next.privacy && next.marketing && next.age;
+    setAgreements(next);
+  };
 
   const {
     register,
@@ -121,6 +142,10 @@ export default function RegisterPage() {
   const onSubmit = async (data: FormData) => {
     if (!otpVerified) {
       setError('휴대폰 인증을 완료해주세요.');
+      return;
+    }
+    if (!agreements.terms || !agreements.privacy || !agreements.age) {
+      setError('필수 약관에 모두 동의해주세요.');
       return;
     }
     setError('');
@@ -318,6 +343,96 @@ export default function RegisterPage() {
                   placeholder="상세 주소 (동, 호수 등)"
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
+              </div>
+            </div>
+
+            {/* 약관 동의 */}
+            <div className="border-t border-gray-100 pt-4">
+              <p className="text-sm font-medium text-gray-700 mb-3">약관 동의</p>
+              <div className="space-y-2">
+                {/* 전체 동의 */}
+                <label className="flex items-center gap-3 cursor-pointer rounded-lg bg-gray-50 border border-gray-200 px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={agreements.all}
+                    onChange={(e) => toggleAll(e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-semibold text-gray-900">전체 동의</span>
+                  <span className="ml-auto text-xs text-gray-400">필수 + 선택 포함</span>
+                </label>
+
+                <div className="pl-1 space-y-2">
+                  {/* 이용약관 */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreements.terms}
+                      onChange={(e) => toggleOne('terms', e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 flex-1">
+                      <span className="text-blue-600 font-medium text-xs mr-1">[필수]</span>
+                      이용약관 동의
+                    </span>
+                    <Link
+                      href="/terms/service"
+                      target="_blank"
+                      className="flex items-center text-xs text-gray-400 hover:text-gray-600 shrink-0"
+                    >
+                      내용 보기 <ChevronRight className="h-3 w-3" />
+                    </Link>
+                  </label>
+
+                  {/* 개인정보처리방침 */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreements.privacy}
+                      onChange={(e) => toggleOne('privacy', e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 flex-1">
+                      <span className="text-blue-600 font-medium text-xs mr-1">[필수]</span>
+                      개인정보 수집 및 이용 동의
+                    </span>
+                    <Link
+                      href="/terms/privacy"
+                      target="_blank"
+                      className="flex items-center text-xs text-gray-400 hover:text-gray-600 shrink-0"
+                    >
+                      내용 보기 <ChevronRight className="h-3 w-3" />
+                    </Link>
+                  </label>
+
+                  {/* 만 14세 */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreements.age}
+                      onChange={(e) => toggleOne('age', e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">
+                      <span className="text-blue-600 font-medium text-xs mr-1">[필수]</span>
+                      만 14세 이상입니다
+                    </span>
+                  </label>
+
+                  {/* 마케팅 */}
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={agreements.marketing}
+                      onChange={(e) => toggleOne('marketing', e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 flex-1">
+                      <span className="text-gray-400 font-medium text-xs mr-1">[선택]</span>
+                      마케팅 정보 수신 동의 (이메일·SMS)
+                    </span>
+                  </label>
+                </div>
               </div>
             </div>
 
