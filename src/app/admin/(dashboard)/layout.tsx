@@ -15,11 +15,13 @@ import {
   Plug,
   Star,
   Layers,
+  FolderTree,
 } from 'lucide-react';
 
 const navItems = [
   { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
   { href: '/admin/products', label: '상품 관리', icon: Package },
+  { href: '/admin/categories', label: '카테고리', icon: FolderTree },
   { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
   { href: '/admin/users', label: '회원 관리', icon: Users },
   { href: '/admin/groups', label: '그룹 관리', icon: Layers },

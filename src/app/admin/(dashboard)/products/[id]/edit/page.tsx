@@ -1,13 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import adminApi from '@/lib/admin-api';
-import { api } from '@/lib/api';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Upload, Sparkles, Loader2 } from 'lucide-react';
 
 interface Category {
   id: string;
   name: string;
+  parentId: string | null;
+  children?: Category[];
 }
 interface ProductImage {
   id: string;
@@ -15,14 +16,25 @@ interface ProductImage {
   isPrimary: boolean;
 }
 
+function flattenCategories(tree: Category[], depth = 0): { id: string; label: string }[] {
+  const result: { id: string; label: string }[] = [];
+  for (const cat of tree) {
+    result.push({ id: cat.id, label: (depth > 0 ? '  └ ' : '') + cat.name });
+    if (cat.children?.length) result.push(...flattenCategories(cat.children, depth + 1));
+  }
+  return result;
+}
+
 export default function EditProductPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
-  const [categories, setCategories] = useState<Category[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [categories, setCategories] = useState<{ id: string; label: string }[]>([]);
   const [images, setImages] = useState<ProductImage[]>([]);
-  const [newImageUrl, setNewImageUrl] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
 
   const [form, setForm] = useState({
@@ -32,11 +44,12 @@ export default function EditProductPage() {
   });
 
   useEffect(() => {
+    setLoading(true);
     Promise.all([
-      api.get('/categories'),
+      adminApi.get('/admin/categories'),
       adminApi.get(`/admin/products/${id}`),
     ]).then(([catRes, prodRes]) => {
-      setCategories(catRes.data);
+      setCategories(flattenCategories(catRes.data));
       const p = prodRes.data;
       setImages(p.images ?? []);
       setForm({
@@ -46,11 +59,59 @@ export default function EditProductPage() {
         stockQuantity: String(p.stockQuantity ?? 0), minOrderQty: String(p.minOrderQty ?? 1),
         description: p.description ?? '', sdsFileUrl: p.sdsFileUrl ?? '', isActive: p.isActive ?? true,
       });
-    });
+    }).finally(() => setLoading(false));
   }, [id]);
 
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
+  }
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setUploading(true);
+    for (const file of files) {
+      try {
+        const fd = new FormData();
+        fd.append('file', file);
+        const { data } = await adminApi.post('/admin/uploads/image', fd);
+        const { data: imgData } = await adminApi.post(`/admin/products/${id}/images`, {
+          url: data.url,
+          isPrimary: images.length === 0,
+        });
+        setImages((prev) => [...prev, imgData]);
+      } catch {
+        setError('이미지 업로드에 실패했습니다.');
+      }
+    }
+    setUploading(false);
+    e.target.value = '';
+  }
+
+  async function deleteImage(imageId: string) {
+    await adminApi.delete(`/admin/products/images/${imageId}`);
+    setImages((prev) => prev.filter((img) => img.id !== imageId));
+  }
+
+  async function generateDescription() {
+    if (!form.name.trim()) return alert('상품명을 먼저 입력해주세요.');
+    setAiLoading(true);
+    try {
+      const categoryLabel = categories.find((c) => c.id === form.categoryId)?.label;
+      const { data } = await adminApi.post('/admin/products/generate-description', {
+        name: form.name,
+        manufacturer: form.manufacturer,
+        specifications: form.specifications,
+        casNumber: form.casNumber,
+        unit: form.unit,
+        category: categoryLabel,
+      });
+      set('description', data.description);
+    } catch {
+      setError('AI 설명 생성에 실패했습니다. ANTHROPIC_API_KEY 설정을 확인해주세요.');
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   async function handleSave(e: React.FormEvent) {
@@ -73,26 +134,6 @@ export default function EditProductPage() {
     }
   }
 
-  async function addImage() {
-    if (!newImageUrl.trim()) return;
-    setLoading(true);
-    try {
-      const { data } = await adminApi.post(`/admin/products/${id}/images`, {
-        url: newImageUrl.trim(),
-        isPrimary: images.length === 0,
-      });
-      setImages((prev) => [...prev, data]);
-      setNewImageUrl('');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function deleteImage(imageId: string) {
-    await adminApi.delete(`/admin/products/images/${imageId}`);
-    setImages((prev) => prev.filter((img) => img.id !== imageId));
-  }
-
   const field = (label: string, key: keyof typeof form, type = 'text') => (
     <div>
       <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
@@ -105,20 +146,21 @@ export default function EditProductPage() {
     </div>
   );
 
+  if (loading) {
+    return <div className="py-16 text-center text-sm text-gray-400">불러오는 중...</div>;
+  }
+
   return (
     <div>
       <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-sm">
-          ← 뒤로
-        </button>
+        <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600 text-sm">← 뒤로</button>
         <h1 className="text-xl font-bold text-gray-900">상품 수정</h1>
       </div>
 
-      {error && (
-        <div className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>
-      )}
+      {error && <div className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-3 mb-4">{error}</div>}
 
       <form onSubmit={handleSave} className="space-y-6">
+        {/* 기본 정보 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-800 mb-4">기본 정보</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -133,7 +175,7 @@ export default function EditProductPage() {
               >
                 <option value="">카테고리 선택</option>
                 {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>{c.label}</option>
                 ))}
               </select>
             </div>
@@ -145,6 +187,7 @@ export default function EditProductPage() {
           </div>
         </div>
 
+        {/* 가격/재고 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-800 mb-4">가격 / 재고</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -154,43 +197,47 @@ export default function EditProductPage() {
           </div>
         </div>
 
+        {/* 이미지 관리 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          <h2 className="font-semibold text-gray-800 mb-4">이미지 관리</h2>
-          <div className="flex gap-2 mb-3">
-            <input
-              type="url"
-              value={newImageUrl}
-              onChange={(e) => setNewImageUrl(e.target.value)}
-              placeholder="이미지 URL 입력"
-              className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="button"
-              onClick={addImage}
-              disabled={loading}
-              className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm hover:bg-gray-900 disabled:opacity-50"
-            >
-              추가
-            </button>
-          </div>
+          <h2 className="font-semibold text-gray-800 mb-4">상품 이미지</h2>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-2 rounded-lg border-2 border-dashed border-gray-300 px-6 py-4 text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors mb-4 disabled:opacity-50"
+          >
+            {uploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
+            {uploading ? '업로드 중...' : '이미지 파일 선택 (여러 장 가능)'}
+          </button>
           {images.length > 0 && (
             <div className="flex flex-wrap gap-3">
               {images.map((img) => (
                 <div key={img.id} className="relative group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={img.url}
                     alt=""
-                    className="w-24 h-24 object-cover rounded-lg border border-gray-200"
+                    className={`w-28 h-28 object-cover rounded-xl border-2 ${
+                      img.isPrimary ? 'border-blue-500' : 'border-gray-200'
+                    }`}
                   />
                   {img.isPrimary && (
-                    <span className="absolute top-1 left-1 bg-blue-600 text-white text-xs px-1.5 py-0.5 rounded">
+                    <span className="absolute top-1 left-1 rounded bg-blue-600 px-1.5 py-0.5 text-xs text-white">
                       대표
                     </span>
                   )}
                   <button
                     type="button"
                     onClick={() => deleteImage(img.id)}
-                    className="absolute top-1 right-1 bg-red-500 text-white rounded p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-1 right-1 rounded bg-red-500 p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity"
                   >
                     <Trash2 size={12} />
                   </button>
@@ -200,15 +247,32 @@ export default function EditProductPage() {
           )}
         </div>
 
+        {/* 상세 정보 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-800 mb-4">상세 정보</h2>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">상품 설명</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">상품 설명</label>
+                <button
+                  type="button"
+                  onClick={generateDescription}
+                  disabled={aiLoading}
+                  className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+                >
+                  {aiLoading ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Sparkles className="h-3.5 w-3.5" />
+                  )}
+                  {aiLoading ? 'AI 생성 중...' : 'AI로 설명 생성'}
+                </button>
+              </div>
               <textarea
                 value={form.description}
                 onChange={(e) => set('description', e.target.value)}
-                rows={5}
+                rows={6}
+                placeholder="상품 설명을 직접 입력하거나 AI 생성 버튼을 사용하세요."
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -227,18 +291,12 @@ export default function EditProductPage() {
         </div>
 
         <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-          >
+          <button type="button" onClick={() => router.back()}
+            className="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
             취소
           </button>
-          <button
-            type="submit"
-            disabled={saving}
-            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
-          >
+          <button type="submit" disabled={saving}
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
             {saving ? '저장 중...' : '저장'}
           </button>
         </div>
