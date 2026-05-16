@@ -26,7 +26,34 @@ export default function PointMallPage() {
       const { data } = await api.get('/point-mall/products');
       return data;
     },
+    enabled: !!user?.isVerified,
   });
+
+  if (user === null) {
+    router.push('/login');
+    return null;
+  }
+
+  if (!user.isVerified) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 text-center">
+        <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-10 inline-block">
+          <p className="text-2xl mb-3">🔒</p>
+          <h2 className="text-xl font-bold text-gray-800 mb-2">인증회원 전용 서비스입니다</h2>
+          <p className="text-gray-500 text-sm mb-6">
+            와이즈몰은 인증된 회원만 이용할 수 있습니다.<br />
+            회원 인증 후 와이즈로 다양한 상품을 교환해보세요.
+          </p>
+          <button
+            onClick={() => router.push('/my/verification')}
+            className="rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            인증 신청하기
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

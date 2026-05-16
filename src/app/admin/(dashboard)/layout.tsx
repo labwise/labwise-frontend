@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronRight,
   Plug,
+  Star,
 } from 'lucide-react';
 
 const navItems = [
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/admin/users', label: '회원 관리', icon: Users },
   { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
   { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
+  { href: '/admin/featured', label: '추천 상품', icon: Star },
   { href: '/admin/integrations', label: '연동 관리', icon: Plug },
 ];
 

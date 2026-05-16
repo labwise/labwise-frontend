@@ -50,7 +50,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <Link href="/" className="inline-flex items-center justify-center">
-            <Logo className="h-12 w-auto" />
+            <Logo className="h-14 w-auto" />
           </Link>
           <h2 className="mt-5 text-xl font-semibold text-gray-700">로그인</h2>
         </div>

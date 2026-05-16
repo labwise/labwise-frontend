@@ -7,6 +7,7 @@ interface AuthUser {
   name: string;
   pointBalance: number;
   groupId: string;
+  isVerified: boolean;
 }
 
 interface AuthState {

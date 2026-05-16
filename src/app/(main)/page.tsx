@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ArrowRight, Package, Shield, Truck } from 'lucide-react';
+import { FeaturedProducts } from '@/components/FeaturedProducts';
 
 export default function HomePage() {
   return (
@@ -65,21 +66,8 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="bg-gray-100 py-12">
-        <div className="mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-          <h2 className="mb-2 text-2xl font-bold text-gray-900">와이즈몰도 확인해보세요</h2>
-          <p className="mb-6 text-gray-500">
-            인증회원이 되면 와이즈로 상품을 교환할 수 있습니다
-          </p>
-          <Link
-            href="/point-mall"
-            className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
-          >
-            와이즈몰 바로가기 <ArrowRight className="h-5 w-5" />
-          </Link>
-        </div>
-      </section>
+      {/* Featured Products */}
+      <FeaturedProducts />
     </div>
   );
 }
