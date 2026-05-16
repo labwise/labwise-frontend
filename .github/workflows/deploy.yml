@@ -10,16 +10,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Deploy to EC2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_TOSS_CLIENT_KEY: ${{ secrets.NEXT_PUBLIC_TOSS_CLIENT_KEY }}
+
+      - name: Package standalone build
+        run: |
+          cp -r public .next/standalone/public
+          cp -r .next/static .next/standalone/.next/static
+          tar -czf frontend.tar.gz -C .next/standalone .
+
+      - name: Upload to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: frontend.tar.gz
+          target: /home/ec2-user/
+
+      - name: Restart on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd labwise-frontend
-            git pull origin main
-            npm ci
-            npm run build
-            pm2 restart labwise-frontend || pm2 start npm --name labwise-frontend -- start
+            rm -rf ~/labwise-frontend-standalone
+            mkdir -p ~/labwise-frontend-standalone
+            tar -xzf ~/frontend.tar.gz -C ~/labwise-frontend-standalone
+            rm ~/frontend.tar.gz
+            pm2 delete labwise-frontend 2>/dev/null || true
+            cd ~/labwise-frontend-standalone && PORT=3001 pm2 start server.js --name labwise-frontend
             pm2 save
