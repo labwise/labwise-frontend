@@ -2,19 +2,38 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, User, Search, LogOut } from 'lucide-react';
+import { ShoppingCart, User, Search, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
 import { formatPrice } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { Logo } from '@/components/Logo';
+import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  children?: Category[];
+}
 
 export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { items } = useCartStore();
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
+
+  const { data: categories = [] } = useQuery<Category[]>({
+    queryKey: ['categories-nav'],
+    queryFn: async () => {
+      const { data } = await api.get('/categories');
+      return data;
+    },
+    staleTime: 1000 * 60 * 5,
+  });
 
   const handleLogout = async () => {
     try {
@@ -85,20 +104,55 @@ export function Header() {
         </div>
       </div>
 
+      {/* Category Navigation */}
       <nav className="border-t border-gray-100 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-10 items-center gap-6 text-sm">
-            <Link href="/products" className="text-gray-600 hover:text-blue-600">
+          <div className="flex h-10 items-center gap-1 text-sm">
+            <Link
+              href="/products"
+              className="px-3 py-1.5 text-gray-600 hover:text-blue-600 rounded-md hover:bg-gray-50"
+            >
               전체 상품
             </Link>
-            <Link href="/products?category=consumables" className="text-gray-600 hover:text-blue-600">
-              소모품
-            </Link>
-            <Link href="/products?category=reagents" className="text-gray-600 hover:text-blue-600">
-              시약
-            </Link>
+
+            {categories.map((cat) => (
+              <div
+                key={cat.id}
+                className="relative"
+                onMouseEnter={() => setOpenMenu(cat.id)}
+                onMouseLeave={() => setOpenMenu(null)}
+              >
+                <Link
+                  href={`/products?category=${cat.slug}`}
+                  className="flex items-center gap-0.5 px-3 py-1.5 text-gray-600 hover:text-blue-600 rounded-md hover:bg-gray-50"
+                >
+                  {cat.name}
+                  {(cat.children?.length ?? 0) > 0 && (
+                    <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
+                  )}
+                </Link>
+
+                {openMenu === cat.id && (cat.children?.length ?? 0) > 0 && (
+                  <div className="absolute left-0 top-full z-50 min-w-[160px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+                    {cat.children!.map((sub) => (
+                      <Link
+                        key={sub.id}
+                        href={`/products?category=${sub.slug}`}
+                        className="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                      >
+                        {sub.name}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
             {user?.hasPointmallAccess && (
-              <Link href="/point-mall" className="font-medium text-blue-600 hover:text-blue-700">
+              <Link
+                href="/point-mall"
+                className="ml-2 px-3 py-1.5 font-medium text-blue-600 hover:text-blue-700 rounded-md hover:bg-blue-50"
+              >
                 와이즈몰
               </Link>
             )}

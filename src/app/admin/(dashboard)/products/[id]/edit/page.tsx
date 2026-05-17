@@ -16,26 +16,20 @@ interface ProductImage {
   isPrimary: boolean;
 }
 
-function flattenCategories(tree: Category[], depth = 0): { id: string; label: string }[] {
-  const result: { id: string; label: string }[] = [];
-  for (const cat of tree) {
-    result.push({ id: cat.id, label: (depth > 0 ? '  └ ' : '') + cat.name });
-    if (cat.children?.length) result.push(...flattenCategories(cat.children, depth + 1));
-  }
-  return result;
-}
-
 export default function EditProductPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [categories, setCategories] = useState<{ id: string; label: string }[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [selectedMainId, setSelectedMainId] = useState('');
+  const [selectedSubId, setSelectedSubId] = useState('');
 
   const [form, setForm] = useState({
     name: '', slug: '', categoryId: '', sku: '', manufacturer: '',
@@ -49,9 +43,24 @@ export default function EditProductPage() {
       adminApi.get('/admin/categories'),
       adminApi.get(`/admin/products/${id}`),
     ]).then(([catRes, prodRes]) => {
-      setCategories(flattenCategories(catRes.data));
+      const cats: Category[] = catRes.data;
+      setCategories(cats);
       const p = prodRes.data;
       setImages(p.images ?? []);
+
+      // Determine main/sub from categoryId
+      const catId = p.categoryId ?? '';
+      let mainId = catId;
+      let subId = '';
+      const isSubCat = cats.some((c) => c.children?.some((ch) => ch.id === catId));
+      if (isSubCat) {
+        const parent = cats.find((c) => c.children?.some((ch) => ch.id === catId));
+        mainId = parent?.id ?? '';
+        subId = catId;
+      }
+      setSelectedMainId(mainId);
+      setSelectedSubId(subId);
+
       setForm({
         name: p.name ?? '', slug: p.slug ?? '', categoryId: p.categoryId ?? '',
         sku: p.sku ?? '', manufacturer: p.manufacturer ?? '', casNumber: p.casNumber ?? '',
@@ -61,6 +70,20 @@ export default function EditProductPage() {
       });
     }).finally(() => setLoading(false));
   }, [id]);
+
+  const mainCategories = categories;
+  const subCategories = categories.find((c) => c.id === selectedMainId)?.children ?? [];
+
+  function handleMainCategoryChange(mainId: string) {
+    setSelectedMainId(mainId);
+    setSelectedSubId('');
+    set('categoryId', mainId);
+  }
+
+  function handleSubCategoryChange(subId: string) {
+    setSelectedSubId(subId);
+    set('categoryId', subId || selectedMainId);
+  }
 
   function set(field: string, value: string | boolean) {
     setForm((f) => ({ ...f, [field]: value }));
@@ -97,7 +120,9 @@ export default function EditProductPage() {
     if (!form.name.trim()) return alert('상품명을 먼저 입력해주세요.');
     setAiLoading(true);
     try {
-      const categoryLabel = categories.find((c) => c.id === form.categoryId)?.label;
+      const mainCat = categories.find((c) => c.id === selectedMainId);
+      const subCat = mainCat?.children?.find((c) => c.id === selectedSubId);
+      const categoryLabel = subCat?.name ?? mainCat?.name;
       const { data } = await adminApi.post('/admin/products/generate-description', {
         name: form.name,
         manufacturer: form.manufacturer,
@@ -166,19 +191,39 @@ export default function EditProductPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {field('상품명', 'name')}
             {field('슬러그', 'slug')}
+
+            {/* 메인 카테고리 */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">카테고리</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">메인 카테고리</label>
               <select
-                value={form.categoryId}
-                onChange={(e) => set('categoryId', e.target.value)}
+                value={selectedMainId}
+                onChange={(e) => handleMainCategoryChange(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">카테고리 선택</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
+                <option value="">메인 카테고리 선택</option>
+                {mainCategories.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
             </div>
+
+            {/* 서브 카테고리 */}
+            {subCategories.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">서브 카테고리</label>
+                <select
+                  value={selectedSubId}
+                  onChange={(e) => handleSubCategoryChange(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">서브 카테고리 선택 (선택 안 하면 메인으로 등록)</option>
+                  {subCategories.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {field('SKU', 'sku')}
             {field('제조사', 'manufacturer')}
             {field('CAS 번호', 'casNumber')}
@@ -200,14 +245,7 @@ export default function EditProductPage() {
         {/* 이미지 관리 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-800 mb-4">상품 이미지</h2>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={handleFileChange}
-          />
+          <input ref={fileInputRef} type="file" accept="image/*" multiple className="hidden" onChange={handleFileChange} />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
@@ -222,17 +260,9 @@ export default function EditProductPage() {
               {images.map((img) => (
                 <div key={img.id} className="relative group">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={img.url}
-                    alt=""
-                    className={`w-28 h-28 object-cover rounded-xl border-2 ${
-                      img.isPrimary ? 'border-blue-500' : 'border-gray-200'
-                    }`}
-                  />
+                  <img src={img.url} alt="" className={`w-28 h-28 object-cover rounded-xl border-2 ${img.isPrimary ? 'border-blue-500' : 'border-gray-200'}`} />
                   {img.isPrimary && (
-                    <span className="absolute top-1 left-1 rounded bg-blue-600 px-1.5 py-0.5 text-xs text-white">
-                      대표
-                    </span>
+                    <span className="absolute top-1 left-1 rounded bg-blue-600 px-1.5 py-0.5 text-xs text-white">대표</span>
                   )}
                   <button
                     type="button"
@@ -260,11 +290,7 @@ export default function EditProductPage() {
                   disabled={aiLoading}
                   className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-50"
                 >
-                  {aiLoading ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3.5 w-3.5" />
-                  )}
+                  {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                   {aiLoading ? 'AI 생성 중...' : 'AI로 설명 생성'}
                 </button>
               </div>
@@ -278,25 +304,15 @@ export default function EditProductPage() {
             </div>
             {field('SDS 파일 URL', 'sdsFileUrl')}
             <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                id="isActive"
-                checked={form.isActive}
-                onChange={(e) => set('isActive', e.target.checked)}
-                className="rounded"
-              />
+              <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => set('isActive', e.target.checked)} className="rounded" />
               <label htmlFor="isActive" className="text-sm text-gray-700">판매 활성화</label>
             </div>
           </div>
         </div>
 
         <div className="flex justify-end gap-3">
-          <button type="button" onClick={() => router.back()}
-            className="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-            취소
-          </button>
-          <button type="submit" disabled={saving}
-            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
+          <button type="button" onClick={() => router.back()} className="px-5 py-2 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50">취소</button>
+          <button type="submit" disabled={saving} className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50">
             {saving ? '저장 중...' : '저장'}
           </button>
         </div>

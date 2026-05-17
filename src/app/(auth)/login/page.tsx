@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
+import { useCartStore } from '@/store/cart.store';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 import { useActiveIntegrations } from '@/hooks/useActiveIntegrations';
@@ -25,6 +26,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 export default function LoginPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
+  const { mergeGuestCart } = useCartStore();
   const [error, setError] = useState('');
   const { hasGoogle, hasKakao, hasNaver, hasSocial } = useActiveIntegrations();
 
@@ -39,6 +41,7 @@ export default function LoginPage() {
     try {
       const { data: res } = await api.post('/auth/login', data);
       setAuth(res.user, res.accessToken, res.refreshToken);
+      await mergeGuestCart();
       router.push('/');
     } catch (err: any) {
       setError(err.response?.data?.message ?? '로그인에 실패했습니다.');

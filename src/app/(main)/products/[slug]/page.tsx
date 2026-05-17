@@ -33,14 +33,26 @@ export default function ProductDetailPage() {
   const price = product?.effectivePrice ?? product?.price ?? 0;
 
   const handleAddToCart = async () => {
-    if (!user) { router.push('/login'); return; }
     setAdding(true);
     try {
-      await addItem(product!.id, qty);
+      await addItem(product!.id, qty, {
+        name: product!.name,
+        slug: product!.slug,
+        price,
+        imageUrl: primaryImage?.url,
+      });
       router.push('/cart');
     } finally {
       setAdding(false);
     }
+  };
+
+  const handleBuyNow = () => {
+    if (!user) {
+      router.push('/register');
+      return;
+    }
+    router.push('/checkout');
   };
 
   if (isLoading) {
@@ -118,22 +130,41 @@ export default function ProductDetailPage() {
               onClick={handleAddToCart}
               disabled={product.stockQuantity === 0}
               loading={adding}
+              variant="outline"
               className="flex-1"
             >
               <ShoppingCart className="mr-2 h-5 w-5" />
               장바구니 담기
             </Button>
-            {product.sdsFileUrl && (
-              <a
-                href={product.sdsFileUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 rounded-md border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
-              >
-                <FileText className="h-4 w-4" /> SDS
-              </a>
-            )}
+            <Button
+              onClick={handleBuyNow}
+              disabled={product.stockQuantity === 0}
+              className="flex-1"
+            >
+              바로 구매
+            </Button>
           </div>
+
+          {!user && (
+            <p className="mt-3 text-center text-xs text-gray-400">
+              구매하려면{' '}
+              <Link href="/register" className="text-blue-600 underline">회원가입</Link>
+              {' '}또는{' '}
+              <Link href="/login" className="text-blue-600 underline">로그인</Link>
+              이 필요합니다.
+            </p>
+          )}
+
+          {product.sdsFileUrl && (
+            <a
+              href={product.sdsFileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-3 flex w-fit items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+            >
+              <FileText className="h-4 w-4" /> SDS 자료 다운로드
+            </a>
+          )}
         </div>
       </div>
 

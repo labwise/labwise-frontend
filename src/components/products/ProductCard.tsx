@@ -4,9 +4,7 @@ import { ShoppingCart } from 'lucide-react';
 import type { Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
-import { useAuthStore } from '@/store/auth.store';
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 
 interface Props {
   product: Product;
@@ -14,8 +12,6 @@ interface Props {
 
 export function ProductCard({ product }: Props) {
   const { addItem } = useCartStore();
-  const { user } = useAuthStore();
-  const router = useRouter();
   const [adding, setAdding] = useState(false);
 
   const primaryImage = product.images?.find((img) => img.isPrimary) ?? product.images?.[0];
@@ -23,13 +19,14 @@ export function ProductCard({ product }: Props) {
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!user) {
-      router.push('/login');
-      return;
-    }
     setAdding(true);
     try {
-      await addItem(product.id, product.minOrderQty);
+      await addItem(product.id, product.minOrderQty, {
+        name: product.name,
+        slug: product.slug,
+        price,
+        imageUrl: primaryImage?.url,
+      });
     } finally {
       setAdding(false);
     }

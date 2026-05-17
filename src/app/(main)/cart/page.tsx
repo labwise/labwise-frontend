@@ -15,24 +15,30 @@ export default function CartPage() {
   const { items, loading, fetchCart, updateItem, removeItem } = useCartStore();
 
   useEffect(() => {
-    if (user) fetchCart();
+    fetchCart();
   }, [user]);
-
-  if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 text-center">
-        <ShoppingBag className="mb-4 h-12 w-12 text-gray-300" />
-        <p className="mb-4 text-gray-500">로그인 후 이용할 수 있습니다.</p>
-        <Link href="/login">
-          <Button>로그인하기</Button>
-        </Link>
-      </div>
-    );
-  }
 
   const productTotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const shippingFee = productTotal >= 50000 ? 0 : 3000;
   const totalAmount = productTotal + shippingFee;
+
+  const handleCheckout = () => {
+    if (!user) {
+      router.push('/register?redirect=checkout');
+      return;
+    }
+    router.push('/checkout');
+  };
+
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-4xl px-4 py-12 text-center">
+        <div className="animate-pulse space-y-4">
+          {[1, 2].map((i) => <div key={i} className="h-20 rounded-xl bg-gray-100" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -113,12 +119,20 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <Button
-                className="mt-4 w-full"
-                onClick={() => router.push('/checkout')}
-              >
-                주문하기 <ArrowRight className="ml-2 h-4 w-4" />
+              <Button className="mt-4 w-full" onClick={handleCheckout}>
+                {user ? '주문하기' : '로그인 후 주문하기'} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
+
+              {!user && (
+                <div className="mt-3 rounded-lg bg-blue-50 p-3 text-center text-xs text-blue-700">
+                  <p className="mb-1 font-medium">구매하려면 회원가입이 필요합니다</p>
+                  <div className="flex justify-center gap-3">
+                    <Link href="/register?redirect=checkout" className="underline">회원가입</Link>
+                    <span>·</span>
+                    <Link href="/login?redirect=checkout" className="underline">로그인</Link>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
