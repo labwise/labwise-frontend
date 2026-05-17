@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAdminAuthStore } from '@/store/admin-auth.store';
@@ -12,13 +12,24 @@ import {
   Gift,
   LogOut,
   ChevronRight,
+  ChevronDown,
   Plug,
   Star,
   Layers,
   FolderTree,
+  Globe,
+  KeyRound,
 } from 'lucide-react';
 
-const navItems = [
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  exact?: boolean;
+  children?: { href: string; label: string; icon: React.ElementType }[];
+}
+
+const navItems: NavItem[] = [
   { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
   { href: '/admin/products', label: '상품 관리', icon: Package },
   { href: '/admin/categories', label: '카테고리', icon: FolderTree },
@@ -28,13 +39,22 @@ const navItems = [
   { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
   { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
   { href: '/admin/featured', label: '추천 상품', icon: Star },
-  { href: '/admin/integrations', label: '연동 관리', icon: Plug },
+  {
+    href: '/admin/integrations',
+    label: '연동 관리',
+    icon: Plug,
+    children: [
+      { href: '/admin/integrations', label: '로그인 연동', icon: KeyRound },
+      { href: '/admin/integrations/domain', label: '도메인 연동', icon: Globe },
+    ],
+  },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { admin, token, logout } = useAdminAuthStore();
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['/admin/integrations']));
 
   useEffect(() => {
     if (!token) router.push('/admin/login');
@@ -47,6 +67,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     router.push('/admin/login');
   }
 
+  function toggleGroup(href: string) {
+    setOpenGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(href)) next.delete(href);
+      else next.add(href);
+      return next;
+    });
+  }
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
@@ -56,22 +85,67 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <p className="text-gray-400 text-xs mt-0.5 truncate">{admin.name}</p>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5">
-          {navItems.map(({ href, label, icon: Icon, exact }) => {
-            const active = exact ? pathname === href : pathname.startsWith(href);
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+          {navItems.map(({ href, label, icon: Icon, exact, children }) => {
+            const isActive = exact ? pathname === href : pathname.startsWith(href);
+            const isOpen = openGroups.has(href);
+
+            if (children) {
+              return (
+                <div key={href}>
+                  <button
+                    onClick={() => toggleGroup(href)}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      isActive
+                        ? 'bg-gray-700 text-white'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }`}
+                  >
+                    <Icon size={16} />
+                    {label}
+                    {isOpen
+                      ? <ChevronDown size={14} className="ml-auto" />
+                      : <ChevronRight size={14} className="ml-auto" />
+                    }
+                  </button>
+                  {isOpen && (
+                    <div className="mt-0.5 ml-3 space-y-0.5 border-l border-gray-700 pl-3">
+                      {children.map((child) => {
+                        const childActive = pathname === child.href;
+                        return (
+                          <Link
+                            key={child.href}
+                            href={child.href}
+                            className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
+                              childActive
+                                ? 'bg-blue-600 text-white'
+                                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                            }`}
+                          >
+                            <child.icon size={13} />
+                            {child.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             return (
               <Link
                 key={href}
                 href={href}
                 className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  active
+                  isActive
                     ? 'bg-blue-600 text-white'
                     : 'text-gray-300 hover:bg-gray-800 hover:text-white'
                 }`}
               >
                 <Icon size={16} />
                 {label}
-                {active && <ChevronRight size={14} className="ml-auto" />}
+                {isActive && <ChevronRight size={14} className="ml-auto" />}
               </Link>
             );
           })}

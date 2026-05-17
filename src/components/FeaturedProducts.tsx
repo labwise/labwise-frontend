@@ -77,7 +77,7 @@ export function FeaturedProducts() {
                 <p className="mb-2 text-sm font-medium text-gray-800 line-clamp-2 leading-snug">
                   {product.name}
                 </p>
-                <p className="text-base font-bold text-blue-600">{formatPrice(price)}원</p>
+                <p className="text-base font-bold text-blue-600">{formatPrice(price)}</p>
               </Link>
             );
           })}

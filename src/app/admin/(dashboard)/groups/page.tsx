@@ -161,7 +161,7 @@ export default function AdminGroupsPage() {
                     )}
                   </td>
                   <td className="px-5 py-4 text-center font-medium text-blue-600">
-                    {Number(g.pointRate).toFixed(1)}배
+                    {Number(g.pointRate).toFixed(1)}%
                   </td>
                   <td className="px-5 py-4 text-center font-medium text-green-600">
                     {Number(g.discountRate).toFixed(1)}%
@@ -262,18 +262,21 @@ export default function AdminGroupsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">
-                    와이즈 적립율 <span className="text-xs text-gray-400">(배율)</span>
+                    와이즈 적립율 <span className="text-xs text-gray-400">(구매금액의 %)</span>
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    step="0.1"
-                    value={form.pointRate}
-                    onChange={(e) => setForm({ ...form, pointRate: Number(e.target.value) })}
-                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
-                  />
-                  <p className="mt-1 text-xs text-gray-400">1.0 = 기본, 2.0 = 2배 적립</p>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                      value={form.pointRate}
+                      onChange={(e) => setForm({ ...form, pointRate: Number(e.target.value) })}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-8 text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">%</span>
+                  </div>
+                  <p className="mt-1 text-xs text-gray-400">예: 5 = 구매금액의 5% 적립</p>
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700">

@@ -47,7 +47,7 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center py-2">
             <Logo className="h-14 w-auto" />
           </Link>
 
@@ -123,7 +123,7 @@ export function Header() {
                 onMouseLeave={() => setOpenMenu(null)}
               >
                 <Link
-                  href={`/products?category=${cat.slug}`}
+                  href={`/products?categoryId=${cat.id}`}
                   className="flex items-center gap-0.5 px-3 py-1.5 text-gray-600 hover:text-blue-600 rounded-md hover:bg-gray-50"
                 >
                   {cat.name}
@@ -137,7 +137,7 @@ export function Header() {
                     {cat.children!.map((sub) => (
                       <Link
                         key={sub.id}
-                        href={`/products?category=${sub.slug}`}
+                        href={`/products?categoryId=${sub.id}`}
                         className="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600"
                       >
                         {sub.name}
