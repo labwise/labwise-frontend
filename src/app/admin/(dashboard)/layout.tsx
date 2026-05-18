@@ -19,33 +19,60 @@ import {
   FolderTree,
   Globe,
   KeyRound,
+  BarChart2,
+  Coins,
 } from 'lucide-react';
 
-interface NavItem {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-  exact?: boolean;
-  children?: { href: string; label: string; icon: React.ElementType }[];
+interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
+interface NavGroup {
+  groupLabel: string;
+  items: (NavLeaf & { children?: NavLeaf[] })[];
 }
 
-const navItems: NavItem[] = [
-  { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
-  { href: '/admin/products', label: '상품 관리', icon: Package },
-  { href: '/admin/categories', label: '카테고리', icon: FolderTree },
-  { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
-  { href: '/admin/users', label: '회원 관리', icon: Users },
-  { href: '/admin/groups', label: '그룹 관리', icon: Layers },
-  { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
-  { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
-  { href: '/admin/featured', label: '추천 상품', icon: Star },
+const navGroups: NavGroup[] = [
   {
-    href: '/admin/integrations',
-    label: '연동 관리',
-    icon: Plug,
-    children: [
-      { href: '/admin/integrations', label: '결제/서비스 연동', icon: KeyRound },
-      { href: '/admin/integrations/domain', label: '도메인 연동', icon: Globe },
+    groupLabel: '홈',
+    items: [
+      { href: '/admin', label: '대시보드', icon: LayoutDashboard, exact: true },
+    ],
+  },
+  {
+    groupLabel: '상품 · 주문',
+    items: [
+      { href: '/admin/products', label: '상품 관리', icon: Package },
+      { href: '/admin/categories', label: '카테고리', icon: FolderTree },
+      { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
+      { href: '/admin/featured', label: '추천 상품', icon: Star },
+    ],
+  },
+  {
+    groupLabel: '회원 · 마케팅',
+    items: [
+      { href: '/admin/users', label: '회원 관리', icon: Users },
+      { href: '/admin/groups', label: '그룹 관리', icon: Layers },
+      { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
+      { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
+    ],
+  },
+  {
+    groupLabel: '통계',
+    items: [
+      { href: '/admin/analytics', label: '매출 · 수익', icon: BarChart2 },
+      { href: '/admin/analytics?tab=points', label: '포인트 분석', icon: Coins },
+    ],
+  },
+  {
+    groupLabel: '설정',
+    items: [
+      {
+        href: '/admin/integrations',
+        label: '연동 관리',
+        icon: Plug,
+        children: [
+          { href: '/admin/integrations', label: '결제/서비스 연동', icon: KeyRound },
+          { href: '/admin/integrations/domain', label: '도메인 연동', icon: Globe },
+        ],
+      },
     ],
   },
 ];
@@ -86,70 +113,82 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <p className="text-gray-400 text-xs mt-0.5 truncate">{admin.name}</p>
         </div>
 
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {navItems.map(({ href, label, icon: Icon, exact, children }) => {
-            const isActive = exact ? pathname === href : pathname.startsWith(href);
-            const isOpen = openGroups.has(href);
+        <nav className="flex-1 px-3 py-3 overflow-y-auto">
+          {navGroups.map((group, gi) => (
+            <div key={group.groupLabel} className={gi > 0 ? 'mt-4' : ''}>
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                {group.groupLabel}
+              </p>
+              <div className="space-y-0.5">
+                {group.items.map(({ href, label, icon: Icon, exact, children }) => {
+                  const basePath = href.split('?')[0];
+                  const isActive = exact
+                    ? pathname === basePath
+                    : pathname.startsWith(basePath);
+                  const isOpen = openGroups.has(href);
 
-            if (children) {
-              return (
-                <div key={href}>
-                  <button
-                    onClick={() => toggleGroup(href)}
-                    className={`flex w-full items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      isActive
-                        ? 'bg-gray-700 text-white'
-                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                    }`}
-                  >
-                    <Icon size={16} />
-                    {label}
-                    {isOpen
-                      ? <ChevronDown size={14} className="ml-auto" />
-                      : <ChevronRight size={14} className="ml-auto" />
-                    }
-                  </button>
-                  {isOpen && (
-                    <div className="mt-0.5 ml-3 space-y-0.5 border-l border-gray-700 pl-3">
-                      {children.map((child) => {
-                        const childActive = pathname === child.href;
-                        return (
-                          <Link
-                            key={child.href}
-                            href={child.href}
-                            className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
-                              childActive
-                                ? 'bg-blue-600 text-white'
-                                : 'text-gray-400 hover:bg-gray-800 hover:text-white'
-                            }`}
-                          >
-                            <child.icon size={13} />
-                            {child.label}
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              );
-            }
+                  if (children) {
+                    return (
+                      <div key={href}>
+                        <button
+                          onClick={() => toggleGroup(href)}
+                          className={`flex w-full items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            isActive
+                              ? 'bg-gray-700 text-white'
+                              : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                          }`}
+                        >
+                          <Icon size={16} />
+                          {label}
+                          {isOpen
+                            ? <ChevronDown size={14} className="ml-auto" />
+                            : <ChevronRight size={14} className="ml-auto" />
+                          }
+                        </button>
+                        {isOpen && (
+                          <div className="mt-0.5 ml-3 space-y-0.5 border-l border-gray-700 pl-3">
+                            {children.map((child) => {
+                              const childActive = pathname === child.href;
+                              return (
+                                <Link
+                                  key={child.href}
+                                  href={child.href}
+                                  className={`flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors ${
+                                    childActive
+                                      ? 'bg-blue-600 text-white'
+                                      : 'text-gray-400 hover:bg-gray-800 hover:text-white'
+                                  }`}
+                                >
+                                  <child.icon size={13} />
+                                  {child.label}
+                                </Link>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
 
-            return (
-              <Link
-                key={href}
-                href={href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
-                  isActive
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-800 hover:text-white'
-                }`}
-              >
-                <Icon size={16} />
-                {label}
-                {isActive && <ChevronRight size={14} className="ml-auto" />}
-              </Link>
-            );
-          })}
+                  return (
+                    <Link
+                      key={href}
+                      href={basePath}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                        isActive
+                          ? 'bg-blue-600 text-white'
+                          : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                      }`}
+                    >
+                      <Icon size={16} />
+                      {label}
+                      {isActive && <ChevronRight size={14} className="ml-auto" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         <div className="px-3 py-4 border-t border-gray-700">
