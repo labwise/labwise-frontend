@@ -11,6 +11,7 @@ interface Admin {
 interface AdminAuthState {
   admin: Admin | null;
   token: string | null;
+  _hydrated: boolean;
   setAuth: (admin: Admin, token: string) => void;
   logout: () => void;
 }
@@ -20,6 +21,7 @@ export const useAdminAuthStore = create<AdminAuthState>()(
     (set) => ({
       admin: null,
       token: null,
+      _hydrated: false,
       setAuth: (admin, token) => {
         localStorage.setItem('admin-token', token);
         set({ admin, token });
@@ -29,6 +31,11 @@ export const useAdminAuthStore = create<AdminAuthState>()(
         set({ admin: null, token: null });
       },
     }),
-    { name: 'admin-auth' },
+    {
+      name: 'admin-auth',
+      onRehydrateStorage: () => (state) => {
+        if (state) state._hydrated = true;
+      },
+    },
   ),
 );

@@ -44,7 +44,7 @@ const navItems: NavItem[] = [
     label: '연동 관리',
     icon: Plug,
     children: [
-      { href: '/admin/integrations', label: '로그인 연동', icon: KeyRound },
+      { href: '/admin/integrations', label: '결제/서비스 연동', icon: KeyRound },
       { href: '/admin/integrations/domain', label: '도메인 연동', icon: Globe },
     ],
   },
@@ -53,13 +53,14 @@ const navItems: NavItem[] = [
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const { admin, token, logout } = useAdminAuthStore();
+  const { admin, token, logout, _hydrated } = useAdminAuthStore();
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['/admin/integrations']));
 
   useEffect(() => {
-    if (!token) router.push('/admin/login');
-  }, [token, router]);
+    if (_hydrated && !token) router.push('/admin/login');
+  }, [token, _hydrated, router]);
 
+  if (!_hydrated) return null;
   if (!token || !admin) return null;
 
   function handleLogout() {
