@@ -1,7 +1,8 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { api } from '@/lib/api';
@@ -15,14 +16,15 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   PREPARING: { label: '상품 준비', color: 'text-indigo-600 bg-indigo-50' },
   SHIPPED: { label: '배송 중', color: 'text-purple-600 bg-purple-50' },
   DELIVERED: { label: '배송 완료', color: 'text-green-600 bg-green-50' },
-  CANCELLED: { label: '취소', color: 'text-red-600 bg-red-50' },
-  REFUNDED: { label: '환불', color: 'text-gray-600 bg-gray-50' },
+  CANCELLED: { label: '취소됨', color: 'text-red-600 bg-red-50' },
+  REFUNDED: { label: '환불 완료', color: 'text-gray-600 bg-gray-50' },
 };
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
-  const router = useRouter();
   const queryClient = useQueryClient();
+  const [refundReason, setRefundReason] = useState('');
+  const [showRefundModal, setShowRefundModal] = useState(false);
 
   const { data: order, isLoading } = useQuery<Order>({
     queryKey: ['order', id],
@@ -42,11 +44,24 @@ export default function OrderDetailPage() {
     },
   });
 
+  const refundMutation = useMutation({
+    mutationFn: async (reason: string) => {
+      await api.post(`/orders/${id}/refund`, { reason });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['order', id] });
+      queryClient.invalidateQueries({ queryKey: ['my-orders'] });
+      setShowRefundModal(false);
+    },
+  });
+
   if (isLoading) return <div className="py-8 text-center text-gray-400">로딩 중...</div>;
   if (!order) return <div className="py-8 text-center text-gray-400">주문을 찾을 수 없습니다.</div>;
 
   const st = statusLabels[order.status] ?? { label: order.status, color: 'text-gray-600 bg-gray-50' };
   const addr = order.shippingAddress;
+  const canCancel = order.status === 'PENDING' || order.status === 'PAID';
+  const canRefund = order.status === 'DELIVERED';
 
   return (
     <div className="space-y-4">
@@ -54,19 +69,69 @@ export default function OrderDetailPage() {
         <Link href="/my/orders" className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600">
           <ChevronLeft className="h-4 w-4" /> 주문 목록
         </Link>
-        {order.status === 'PENDING' && (
-          <Button
-            variant="danger"
-            size="sm"
-            loading={cancelMutation.isPending}
-            onClick={() => {
-              if (confirm('주문을 취소하시겠습니까?')) cancelMutation.mutate();
-            }}
-          >
-            주문 취소
-          </Button>
-        )}
+        <div className="flex gap-2">
+          {canCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              loading={cancelMutation.isPending}
+              onClick={() => {
+                if (confirm('주문을 취소하시겠습니까?\n입금 완료된 주문은 관리자가 환불 처리합니다.'))
+                  cancelMutation.mutate();
+              }}
+            >
+              주문 취소
+            </Button>
+          )}
+          {canRefund && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowRefundModal(true)}
+            >
+              반품/환불 신청
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* 환불 신청 모달 */}
+      {showRefundModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-3 text-base font-bold text-gray-900">반품/환불 신청</h3>
+            <p className="mb-4 text-sm text-gray-500">
+              신청 사유를 입력해주세요. 관리자 확인 후 처리됩니다.
+            </p>
+            <textarea
+              value={refundReason}
+              onChange={(e) => setRefundReason(e.target.value)}
+              placeholder="예: 상품 불량, 오배송, 단순 변심 등"
+              rows={3}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <div className="mt-4 flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setShowRefundModal(false)}
+              >
+                취소
+              </Button>
+              <Button
+                className="flex-1"
+                loading={refundMutation.isPending}
+                onClick={() => {
+                  if (!refundReason.trim()) return alert('사유를 입력해주세요.');
+                  refundMutation.mutate(refundReason.trim());
+                }}
+              >
+                신청하기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl border border-gray-200 bg-white p-6">
         <div className="flex items-center justify-between">
@@ -78,6 +143,11 @@ export default function OrderDetailPage() {
             {st.label}
           </span>
         </div>
+        {(order as any).cancelReason && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
+            사유: {(order as any).cancelReason}
+          </p>
+        )}
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-6">
@@ -133,6 +203,12 @@ export default function OrderDetailPage() {
             <p className="mt-2 rounded bg-gray-50 px-3 py-2 text-sm text-gray-500">
               메모: {order.memo}
             </p>
+          )}
+          {order.trackingNumber && (
+            <div className="mt-3 rounded-lg bg-purple-50 px-3 py-2 text-sm">
+              <span className="text-purple-700 font-medium">{order.trackingCompany}</span>
+              <span className="ml-2 text-purple-600">{order.trackingNumber}</span>
+            </div>
           )}
         </div>
       )}
