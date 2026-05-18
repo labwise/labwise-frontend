@@ -41,9 +41,14 @@ export default function NewProductPage() {
     price: '',
     stockQuantity: '0',
     minOrderQty: '1',
+    maxOrderQty: '',
     description: '',
     sdsFileUrl: '',
+    countryOfOrigin: '',
+    taxType: 'TAXABLE',
     isActive: true,
+    isDisplayed: true,
+    isOnSale: true,
   });
 
   useEffect(() => {
@@ -155,6 +160,7 @@ export default function NewProductPage() {
         price: Number(form.price),
         stockQuantity: Number(form.stockQuantity),
         minOrderQty: Number(form.minOrderQty),
+        maxOrderQty: form.maxOrderQty ? Number(form.maxOrderQty) : null,
       });
       for (const img of images) {
         await adminApi.post(`/admin/products/${data.id}/images`, {
@@ -251,6 +257,20 @@ export default function NewProductPage() {
             {field('가격 (원)', 'price', 'number', true)}
             {field('재고 수량', 'stockQuantity', 'number')}
             {field('최소 주문 수량', 'minOrderQty', 'number')}
+            {field('최대 주문 수량 (미입력 시 무제한)', 'maxOrderQty', 'number')}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">과세구분</label>
+              <select
+                value={form.taxType}
+                onChange={(e) => set('taxType', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="TAXABLE">과세 (VAT 10%)</option>
+                <option value="ZERO_RATE">영세율 (0%)</option>
+                <option value="TAX_EXEMPT">면세</option>
+              </select>
+            </div>
+            {field('원산지 (예: 미국, 독일)', 'countryOfOrigin')}
           </div>
         </div>
 
@@ -326,9 +346,19 @@ export default function NewProductPage() {
               />
             </div>
             {field('SDS 파일 URL', 'sdsFileUrl')}
-            <div className="flex items-center gap-2">
-              <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => set('isActive', e.target.checked)} className="rounded" />
-              <label htmlFor="isActive" className="text-sm text-gray-700">판매 활성화</label>
+            <div className="flex flex-wrap items-center gap-6 pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.isActive} onChange={(e) => set('isActive', e.target.checked)} className="rounded" />
+                <span className="text-sm text-gray-700">활성화 (전체)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.isDisplayed} onChange={(e) => set('isDisplayed', e.target.checked)} className="rounded" />
+                <span className="text-sm text-gray-700">목록에 진열</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={form.isOnSale} onChange={(e) => set('isOnSale', e.target.checked)} className="rounded" />
+                <span className="text-sm text-gray-700">판매 가능</span>
+              </label>
             </div>
           </div>
         </div>

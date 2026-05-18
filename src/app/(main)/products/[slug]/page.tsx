@@ -99,36 +99,56 @@ export default function ProductDetailPage() {
           )}
 
           <div className="mb-6 border-t border-b border-gray-100 py-4">
-            <p className="text-3xl font-bold text-gray-900">{formatPrice(price)}</p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-3xl font-bold text-gray-900">{formatPrice(price)}</p>
+              {product.taxType === 'TAX_EXEMPT' && (
+                <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">면세</span>
+              )}
+              {product.taxType === 'ZERO_RATE' && (
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">영세율</span>
+              )}
+            </div>
             {product.unit && <p className="text-sm text-gray-400">/ {product.unit}</p>}
+            {product.countryOfOrigin && (
+              <p className="mt-1 text-sm text-gray-400">원산지: {product.countryOfOrigin}</p>
+            )}
             <p className="mt-2 text-sm text-gray-500">
               재고: {product.stockQuantity > 0 ? `${product.stockQuantity}개 남음` : '품절'}
             </p>
           </div>
 
-          <div className="mb-6 flex items-center gap-3">
-            <div className="flex items-center rounded-md border border-gray-300">
-              <button
-                onClick={() => setQty((q) => Math.max(product.minOrderQty, q - 1))}
-                className="p-2 text-gray-500 hover:text-gray-700"
-              >
-                <Minus className="h-4 w-4" />
-              </button>
-              <span className="w-12 text-center text-sm font-medium">{qty}</span>
-              <button
-                onClick={() => setQty((q) => Math.min(product.stockQuantity, q + 1))}
-                className="p-2 text-gray-500 hover:text-gray-700"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
+          {!product.isOnSale ? (
+            <div className="mb-6 rounded-lg bg-gray-100 px-4 py-3 text-sm text-gray-500 text-center">
+              현재 판매 중단된 상품입니다.
             </div>
-            <p className="text-sm text-gray-400">최소 {product.minOrderQty}개</p>
-          </div>
+          ) : (
+            <div className="mb-6 flex items-center gap-3">
+              <div className="flex items-center rounded-md border border-gray-300">
+                <button
+                  onClick={() => setQty((q) => Math.max(product.minOrderQty, q - 1))}
+                  className="p-2 text-gray-500 hover:text-gray-700"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <span className="w-12 text-center text-sm font-medium">{qty}</span>
+                <button
+                  onClick={() => setQty((q) => Math.min(product.maxOrderQty ?? product.stockQuantity, q + 1))}
+                  className="p-2 text-gray-500 hover:text-gray-700"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
+              <p className="text-sm text-gray-400">
+                최소 {product.minOrderQty}개
+                {product.maxOrderQty && ` / 최대 ${product.maxOrderQty}개`}
+              </p>
+            </div>
+          )}
 
           <div className="flex gap-3">
             <Button
               onClick={handleAddToCart}
-              disabled={product.stockQuantity === 0}
+              disabled={product.stockQuantity === 0 || !product.isOnSale}
               loading={adding}
               variant="outline"
               className="flex-1"
@@ -138,7 +158,7 @@ export default function ProductDetailPage() {
             </Button>
             <Button
               onClick={handleBuyNow}
-              disabled={product.stockQuantity === 0}
+              disabled={product.stockQuantity === 0 || !product.isOnSale}
               className="flex-1"
             >
               바로 구매

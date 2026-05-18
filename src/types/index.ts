@@ -13,7 +13,12 @@ export interface Product {
   effectivePrice?: number;
   stockQuantity: number;
   minOrderQty: number;
+  maxOrderQty?: number;
   isActive: boolean;
+  isDisplayed: boolean;
+  isOnSale: boolean;
+  taxType: 'TAXABLE' | 'ZERO_RATE' | 'TAX_EXEMPT';
+  countryOfOrigin?: string;
   description?: string;
   sdsFileUrl?: string;
   images: ProductImage[];
