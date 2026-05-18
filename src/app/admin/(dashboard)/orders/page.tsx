@@ -1,140 +1,395 @@
 'use client';
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import adminApi from '@/lib/admin-api';
-import { Search } from 'lucide-react';
 
-const STATUS_LABELS: Record<string, string> = {
-  PENDING: '주문 접수', CONFIRMED: '주문 확인', PREPARING: '준비중',
-  SHIPPED: '배송중', DELIVERED: '배송완료', CANCELLED: '취소됨', REFUNDED: '환불됨',
-};
-const STATUS_COLORS: Record<string, string> = {
-  PENDING: 'bg-yellow-100 text-yellow-700', CONFIRMED: 'bg-blue-100 text-blue-700',
-  PREPARING: 'bg-indigo-100 text-indigo-700', SHIPPED: 'bg-purple-100 text-purple-700',
-  DELIVERED: 'bg-green-100 text-green-700', CANCELLED: 'bg-gray-100 text-gray-500',
-  REFUNDED: 'bg-red-100 text-red-600',
-};
+import { useEffect, useState, useCallback } from 'react';
+import adminApi from '@/lib/admin-api';
+import { Search, Truck, ChevronRight, X } from 'lucide-react';
+import { formatPrice } from '@/lib/utils';
+
+// ── 타입 ──────────────────────────────────────────────────────────────────────
+
+type OrderStatus = 'PENDING' | 'PAID' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+
+interface OrderItem {
+  id: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+}
 
 interface Order {
   id: string;
   orderNumber: string;
-  status: string;
-  totalAmount: number;
+  status: OrderStatus;
+  finalAmount: number;
+  paymentMethod: string;
+  trackingNumber?: string;
+  trackingCompany?: string;
+  shippingAddress: { recipientName: string; phone: string; addressLine1: string; city: string; zipCode: string };
+  memo?: string;
   createdAt: string;
-  user: { name: string; email: string };
+  shippedAt?: string;
+  deliveredAt?: string;
+  user: { id: string; name: string; email: string };
+  items: OrderItem[];
 }
+
+// ── 상수 ──────────────────────────────────────────────────────────────────────
+
+const TABS: { value: OrderStatus | ''; label: string; color: string }[] = [
+  { value: '', label: '전체', color: 'text-gray-600' },
+  { value: 'PENDING', label: '입금전', color: 'text-yellow-600' },
+  { value: 'PAID', label: '입금확인', color: 'text-blue-600' },
+  { value: 'PREPARING', label: '배송준비중', color: 'text-indigo-600' },
+  { value: 'SHIPPED', label: '배송중', color: 'text-purple-600' },
+  { value: 'DELIVERED', label: '배송완료', color: 'text-green-600' },
+  { value: 'CANCELLED', label: '취소/환불', color: 'text-gray-400' },
+];
+
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  PENDING: 'bg-yellow-100 text-yellow-700',
+  PAID: 'bg-blue-100 text-blue-700',
+  PREPARING: 'bg-indigo-100 text-indigo-700',
+  SHIPPED: 'bg-purple-100 text-purple-700',
+  DELIVERED: 'bg-green-100 text-green-700',
+  CANCELLED: 'bg-gray-100 text-gray-500',
+  REFUNDED: 'bg-red-100 text-red-600',
+};
+
+const STATUS_LABEL: Record<OrderStatus, string> = {
+  PENDING: '입금전',
+  PAID: '입금확인',
+  PREPARING: '배송준비중',
+  SHIPPED: '배송중',
+  DELIVERED: '배송완료',
+  CANCELLED: '취소됨',
+  REFUNDED: '환불됨',
+};
+
+const NEXT_STATUS: Partial<Record<OrderStatus, { to: OrderStatus; label: string; color: string }>> = {
+  PENDING: { to: 'PAID', label: '입금확인', color: 'bg-blue-600 hover:bg-blue-700 text-white' },
+  PAID: { to: 'PREPARING', label: '배송준비', color: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
+  PREPARING: { to: 'SHIPPED', label: '배송중처리', color: 'bg-purple-600 hover:bg-purple-700 text-white' },
+  SHIPPED: { to: 'DELIVERED', label: '배송완료', color: 'bg-green-600 hover:bg-green-700 text-white' },
+};
+
+const PAYMENT_LABEL: Record<string, string> = {
+  CARD: '신용카드',
+  VIRTUAL_ACCOUNT: '가상계좌',
+  BANK_TRANSFER: '계좌이체',
+  KAKAOPAY: '카카오페이',
+  POSTPAY: '후불결제',
+};
+
+// ── 컴포넌트 ─────────────────────────────────────────────────────────────────
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [status, setStatus] = useState('');
+  const [activeTab, setActiveTab] = useState<OrderStatus | ''>('');
   const [search, setSearch] = useState('');
-  const [query, setQuery] = useState('');
+  const [appliedSearch, setAppliedSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  // 운송장 모달
+  const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
+  const [trackingCompany, setTrackingCompany] = useState('');
+  const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingSaving, setTrackingSaving] = useState(false);
 
   const limit = 20;
 
-  useEffect(() => {
+  const load = useCallback(() => {
     setLoading(true);
+    const statusParam = activeTab === 'CANCELLED' ? undefined : (activeTab || undefined);
+    const statusFilter = activeTab === 'CANCELLED'
+      ? undefined
+      : (activeTab || undefined);
+
     adminApi
       .get('/admin/orders', {
-        params: { page, limit, status: status || undefined, search: query || undefined },
+        params: {
+          page,
+          limit,
+          status: statusParam,
+          search: appliedSearch || undefined,
+        },
       })
       .then(({ data }) => {
-        setOrders(data.items ?? data);
+        let items = data.items ?? data;
+        if (activeTab === 'CANCELLED') {
+          items = items.filter((o: Order) => o.status === 'CANCELLED' || o.status === 'REFUNDED');
+        }
+        setOrders(items);
         setTotal(data.total ?? data.length);
       })
       .finally(() => setLoading(false));
-  }, [page, status, query]);
+  }, [page, activeTab, appliedSearch]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    adminApi.get('/admin/dashboard').then(({ data }) => {
+      if (data.byStatus) setCounts(data.byStatus);
+    });
+  }, []);
+
+  function handleTabChange(tab: OrderStatus | '') {
+    setActiveTab(tab);
+    setPage(1);
+  }
+
+  async function handleStatusChange(order: Order, nextStatus: OrderStatus) {
+    if (nextStatus === 'SHIPPED') {
+      setTrackingOrder(order);
+      setTrackingCompany(order.trackingCompany ?? '');
+      setTrackingNumber(order.trackingNumber ?? '');
+      return;
+    }
+    await adminApi.put(`/admin/orders/${order.id}/status`, { status: nextStatus });
+    load();
+  }
+
+  async function handleCancelOrder(order: Order) {
+    if (!confirm(`주문 ${order.orderNumber}을(를) 취소하시겠습니까?`)) return;
+    await adminApi.put(`/admin/orders/${order.id}/status`, { status: 'CANCELLED' });
+    load();
+  }
+
+  async function handleSaveTracking() {
+    if (!trackingOrder) return;
+    if (!trackingNumber.trim()) return alert('운송장 번호를 입력하세요.');
+    setTrackingSaving(true);
+    try {
+      await adminApi.put(`/admin/orders/${trackingOrder.id}/tracking`, {
+        trackingNumber: trackingNumber.trim(),
+        trackingCompany: trackingCompany.trim(),
+      });
+      await adminApi.put(`/admin/orders/${trackingOrder.id}/status`, { status: 'SHIPPED' });
+      setTrackingOrder(null);
+      load();
+    } finally {
+      setTrackingSaving(false);
+    }
+  }
 
   const totalPages = Math.ceil(total / limit);
 
   return (
-    <div>
-      <h1 className="text-xl font-bold text-gray-900 mb-6">주문 관리</h1>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">주문 관리</h1>
+          <p className="mt-0.5 text-sm text-gray-500">전체 {total.toLocaleString()}건</p>
+        </div>
+      </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <div className="relative">
+      {/* 상태별 탭 */}
+      <div className="flex gap-0.5 rounded-xl bg-gray-100 p-1 overflow-x-auto">
+        {TABS.map((tab) => {
+          const count = tab.value
+            ? (tab.value === 'CANCELLED'
+              ? (counts['CANCELLED'] ?? 0) + (counts['REFUNDED'] ?? 0)
+              : (counts[tab.value] ?? 0))
+            : undefined;
+          const isActive = activeTab === tab.value;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => handleTabChange(tab.value as OrderStatus | '')}
+              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                isActive ? 'bg-white shadow-sm text-gray-900' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className={isActive ? tab.color : ''}>{tab.label}</span>
+              {count !== undefined && count > 0 && (
+                <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${
+                  isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                }`}>
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 검색 */}
+      <div className="flex gap-2">
+        <div className="relative flex-1 max-w-xs">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (setQuery(search), setPage(1))}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { setAppliedSearch(search); setPage(1); }
+            }}
             placeholder="주문번호, 회원명 검색"
-            className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <select
-          value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">전체 상태</option>
-          {Object.entries(STATUS_LABELS).map(([val, label]) => (
-            <option key={val} value={val}>{label}</option>
-          ))}
-        </select>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+      {/* 주문 테이블 */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">주문번호</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">회원</th>
-              <th className="text-right px-4 py-3 text-gray-500 font-medium">금액</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">상태</th>
-              <th className="text-left px-4 py-3 text-gray-500 font-medium">주문일</th>
-              <th className="text-center px-4 py-3 text-gray-500 font-medium">상세</th>
+            <tr className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <th className="px-4 py-3 text-left">주문번호</th>
+              <th className="px-4 py-3 text-left">회원</th>
+              <th className="px-4 py-3 text-right">금액</th>
+              <th className="px-4 py-3 text-center">결제방법</th>
+              <th className="px-4 py-3 text-center">상태</th>
+              <th className="px-4 py-3 text-left">주문일</th>
+              <th className="px-4 py-3 text-center">처리</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-gray-50">
             {loading ? (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">불러오는 중...</td></tr>
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-sm text-gray-400">
+                  불러오는 중...
+                </td>
+              </tr>
             ) : orders.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">주문이 없습니다</td></tr>
+              <tr>
+                <td colSpan={7} className="py-12 text-center text-sm text-gray-400">
+                  주문이 없습니다.
+                </td>
+              </tr>
             ) : (
-              orders.map((o) => (
-                <tr key={o.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-mono text-xs text-gray-600">{o.orderNumber}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-gray-900">{o.user?.name}</p>
-                    <p className="text-xs text-gray-400">{o.user?.email}</p>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">{o.totalAmount.toLocaleString()}원</td>
-                  <td className="px-4 py-3 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? 'bg-gray-100 text-gray-500'}`}>
-                      {STATUS_LABELS[o.status] ?? o.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {new Date(o.createdAt).toLocaleDateString('ko-KR')}
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <Link href={`/admin/orders/${o.id}`} className="text-blue-600 hover:underline text-xs">
-                      보기
-                    </Link>
-                  </td>
-                </tr>
-              ))
+              orders.map((o) => {
+                const next = NEXT_STATUS[o.status];
+                return (
+                  <tr key={o.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3">
+                      <p className="font-mono text-xs text-gray-700">{o.orderNumber}</p>
+                      {o.trackingNumber && (
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-purple-600">
+                          <Truck size={11} />
+                          {o.trackingCompany && <span>{o.trackingCompany}</span>}
+                          <span>{o.trackingNumber}</span>
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-gray-900">{o.user?.name}</p>
+                      <p className="text-xs text-gray-400">{o.user?.email}</p>
+                    </td>
+                    <td className="px-4 py-3 text-right font-medium text-gray-900">
+                      {formatPrice(o.finalAmount)}
+                    </td>
+                    <td className="px-4 py-3 text-center text-xs text-gray-500">
+                      {PAYMENT_LABEL[o.paymentMethod] ?? o.paymentMethod}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_BADGE[o.status] ?? 'bg-gray-100 text-gray-500'}`}>
+                        {STATUS_LABEL[o.status] ?? o.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {new Date(o.createdAt).toLocaleDateString('ko-KR')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        {next && (
+                          <button
+                            onClick={() => handleStatusChange(o, next.to)}
+                            className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${next.color}`}
+                          >
+                            {next.label}
+                          </button>
+                        )}
+                        {(o.status === 'PENDING' || o.status === 'PAID') && (
+                          <button
+                            onClick={() => handleCancelOrder(o)}
+                            className="rounded-md px-2.5 py-1 text-xs font-medium text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                          >
+                            취소
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
 
+      {/* 페이지네이션 */}
       {totalPages > 1 && (
-        <div className="flex justify-center gap-2 mt-4">
+        <div className="flex justify-center gap-1">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
             <button
               key={p}
               onClick={() => setPage(p)}
-              className={`w-8 h-8 rounded text-sm ${p === page ? 'bg-blue-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+              className={`h-8 w-8 rounded text-sm ${p === page ? 'bg-blue-600 text-white' : 'border border-gray-200 bg-white text-gray-600 hover:bg-gray-50'}`}
             >
               {p}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* 운송장 번호 입력 모달 */}
+      {trackingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-5 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-gray-900">배송중 처리</h2>
+              <button onClick={() => setTrackingOrder(null)} className="p-1 text-gray-400 hover:text-gray-600">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="mb-4 text-sm text-gray-500">
+              주문번호: <span className="font-mono font-medium text-gray-900">{trackingOrder.orderNumber}</span>
+            </p>
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">택배사</label>
+                <input
+                  type="text"
+                  value={trackingCompany}
+                  onChange={(e) => setTrackingCompany(e.target.value)}
+                  placeholder="예: CJ대한통운, 롯데택배, 한진택배"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  운송장 번호 <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  placeholder="예: 123456789012"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setTrackingOrder(null)}
+                className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                취소
+              </button>
+              <button
+                onClick={handleSaveTracking}
+                disabled={trackingSaving}
+                className="flex items-center gap-2 rounded-lg bg-purple-600 px-5 py-2 text-sm font-medium text-white hover:bg-purple-700 disabled:opacity-50"
+              >
+                <Truck size={14} />
+                {trackingSaving ? '처리 중...' : '배송중 처리'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
