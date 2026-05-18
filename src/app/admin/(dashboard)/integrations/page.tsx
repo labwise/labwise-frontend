@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import adminApi from '@/lib/admin-api';
 import { CheckCircle, XCircle, AlertTriangle, Save, RefreshCw } from 'lucide-react';
 
-type Provider = 'COOLSMS' | 'GOOGLE' | 'KAKAO' | 'NAVER';
+type Provider = 'COOLSMS' | 'GOOGLE' | 'KAKAO' | 'NAVER' | 'TOSSPAYMENTS' | 'BANK_TRANSFER';
 
 interface IntegrationSetting {
   provider: Provider;
@@ -23,10 +23,32 @@ const PROVIDER_META: Record<
     fields: { key: string; label: string; placeholder: string; sensitive?: boolean }[];
   }
 > = {
+  TOSSPAYMENTS: {
+    label: '토스페이먼츠 (신용카드 / 가상계좌)',
+    required: true,
+    color: 'blue',
+    description: '토스페이먼츠 개발자센터(developers.tosspayments.com)에서 클라이언트 키와 시크릿 키를 발급받으세요.',
+    fields: [
+      { key: 'clientKey', label: '클라이언트 키 (프론트엔드용)', placeholder: 'test_ck_...' },
+      { key: 'secretKey', label: '시크릿 키 (서버용)', placeholder: 'test_sk_...', sensitive: true },
+      { key: 'webhookSecret', label: '웹훅 시크릿 (가상계좌 입금 알림)', placeholder: '토스 콘솔 웹훅 설정에서 발급', sensitive: true },
+    ],
+  },
+  BANK_TRANSFER: {
+    label: '무통장 입금 계좌',
+    required: true,
+    color: 'amber',
+    description: '무통장 입금 결제 방식을 사용할 경우 입금 안내에 표시될 계좌 정보를 입력하세요.',
+    fields: [
+      { key: 'bankName', label: '은행명', placeholder: '예: 신한은행' },
+      { key: 'accountNumber', label: '계좌번호', placeholder: '예: 110-123-456789' },
+      { key: 'accountHolder', label: '예금주', placeholder: '예: (주)랩와이즈' },
+    ],
+  },
   COOLSMS: {
     label: 'CoolSMS (휴대폰 인증)',
     required: true,
-    color: 'blue',
+    color: 'indigo',
     description: '회원가입 시 휴대폰 번호 인증에 사용됩니다. coolsms.co.kr에서 발급받으세요.',
     fields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'NCS...' },
@@ -66,13 +88,15 @@ const PROVIDER_META: Record<
   },
 };
 
-const ORDER: Provider[] = ['COOLSMS', 'KAKAO', 'NAVER', 'GOOGLE'];
+const ORDER: Provider[] = ['TOSSPAYMENTS', 'BANK_TRANSFER', 'COOLSMS', 'KAKAO', 'NAVER', 'GOOGLE'];
 
-const COLOR_MAP = {
+const COLOR_MAP: Record<string, string> = {
   blue: 'bg-blue-50 border-blue-200',
+  amber: 'bg-amber-50 border-amber-200',
   red: 'bg-red-50 border-red-200',
   yellow: 'bg-yellow-50 border-yellow-200',
   green: 'bg-green-50 border-green-200',
+  indigo: 'bg-indigo-50 border-indigo-200',
 };
 
 export default function IntegrationsPage() {
@@ -93,7 +117,6 @@ export default function IntegrationsPage() {
         fmap[item.provider] = {};
         emap[item.provider] = item.isEnabled;
       }
-      // 미설정 provider는 빈 객체로
       for (const p of ORDER) {
         if (!map[p]) {
           map[p] = { provider: p, isEnabled: false, updatedAt: null, config: {} };
@@ -136,7 +159,7 @@ export default function IntegrationsPage() {
       <div className="mb-6">
         <h1 className="text-xl font-bold text-gray-900">연동 관리</h1>
         <p className="text-sm text-gray-500 mt-1">
-          CoolSMS는 필수 연동입니다. 소셜 로그인은 설정 후 자동으로 로그인/회원가입 버튼에 노출됩니다.
+          결제 및 인증 서비스 연동 설정입니다. 변경사항은 즉시 반영됩니다.
         </p>
       </div>
 
@@ -146,13 +169,12 @@ export default function IntegrationsPage() {
           const s = settings[provider];
           const isConfigured = s.updatedAt !== null && Object.keys(s.config).length > 0;
           const isActive = enabled[provider];
-          const colorCls = COLOR_MAP[meta.color as keyof typeof COLOR_MAP];
+          const colorCls = COLOR_MAP[meta.color] ?? 'bg-gray-50 border-gray-200';
           const isSaving = saving === provider;
           const thisResult = result?.provider === provider ? result : null;
 
           return (
             <div key={provider} className={`rounded-xl border p-5 ${colorCls}`}>
-              {/* 헤더 */}
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <h2 className="font-semibold text-gray-900">{meta.label}</h2>
@@ -166,7 +188,6 @@ export default function IntegrationsPage() {
                   )}
                 </div>
 
-                {/* 활성화 토글 */}
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <span className="text-sm text-gray-600">{isActive ? '활성화' : '비활성화'}</span>
                   <div
@@ -180,7 +201,6 @@ export default function IntegrationsPage() {
 
               <p className="text-xs text-gray-500 mb-4">{meta.description}</p>
 
-              {/* CoolSMS 미설정 경고 */}
               {provider === 'COOLSMS' && !isConfigured && (
                 <div className="flex items-center gap-2 mb-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
                   <AlertTriangle size={14} className="text-amber-500 shrink-0" />
@@ -188,14 +208,12 @@ export default function IntegrationsPage() {
                 </div>
               )}
 
-              {/* 기존 설정 표시 */}
               {isConfigured && (
                 <div className="mb-3 text-xs text-gray-500">
                   마지막 업데이트: {new Date(s.updatedAt!).toLocaleString('ko-KR')}
                 </div>
               )}
 
-              {/* 입력 폼 */}
               <div className="space-y-3">
                 {meta.fields.map((field) => {
                   const existingValue = s.config?.[field.key];
@@ -217,7 +235,6 @@ export default function IntegrationsPage() {
                 })}
               </div>
 
-              {/* 저장 버튼 */}
               <div className="mt-4 flex items-center gap-3">
                 <button
                   onClick={() => handleSave(provider)}

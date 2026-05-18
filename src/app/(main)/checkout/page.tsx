@@ -119,9 +119,10 @@ export default function CheckoutPage() {
 
       // 카드 / 가상계좌: 토스페이먼츠 SDK 호출
       const { loadTossPayments, ANONYMOUS } = await import('@tosspayments/tosspayments-sdk');
-      const clientKey = process.env.NEXT_PUBLIC_TOSS_CLIENT_KEY;
+      const { data: payConfig } = await api.get('/payments/config');
+      const clientKey: string = payConfig.clientKey;
       if (!clientKey) {
-        setError('결제 설정 오류: NEXT_PUBLIC_TOSS_CLIENT_KEY가 없습니다.');
+        setError('결제 설정 오류: 관리자 페이지에서 토스페이먼츠 클라이언트 키를 설정해주세요.');
         return;
       }
 
