@@ -49,6 +49,12 @@ export interface Order {
   taxInvoiceRequested: boolean;
   shippingAddress: ShippingAddress;
   memo?: string;
+  trackingNumber?: string;
+  trackingCompany?: string;
+  cancelReason?: string;
+  shippedAt?: string;
+  deliveredAt?: string;
+  cancelledAt?: string;
   items: OrderItem[];
   createdAt: string;
 }

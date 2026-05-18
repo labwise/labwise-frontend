@@ -143,9 +143,9 @@ export default function OrderDetailPage() {
             {st.label}
           </span>
         </div>
-        {(order as any).cancelReason && (
+        {order.cancelReason && (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">
-            사유: {(order as any).cancelReason}
+            사유: {order.cancelReason}
           </p>
         )}
       </div>

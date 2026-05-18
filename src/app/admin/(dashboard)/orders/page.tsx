@@ -24,6 +24,7 @@ interface Order {
   paymentMethod: string;
   trackingNumber?: string;
   trackingCompany?: string;
+  cancelReason?: string;
   shippingAddress: { recipientName: string; phone: string; addressLine1: string; city: string; zipCode: string };
   memo?: string;
   createdAt: string;
@@ -284,9 +285,9 @@ export default function AdminOrdersPage() {
                           <span>{o.trackingNumber}</span>
                         </p>
                       )}
-                      {(o as any).cancelReason && (
-                        <p className="mt-0.5 text-xs text-red-500 truncate max-w-[160px]" title={(o as any).cancelReason}>
-                          사유: {(o as any).cancelReason}
+                      {o.cancelReason && (
+                        <p className="mt-0.5 text-xs text-red-500 truncate max-w-[160px]" title={o.cancelReason}>
+                          사유: {o.cancelReason}
                         </p>
                       )}
                     </td>
