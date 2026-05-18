@@ -136,7 +136,7 @@ export default function CheckoutPage() {
           : `${items[0].productName} 외 ${items.length - 1}개`;
 
       await payment.requestPayment({
-        method: data.paymentMethod as 'CARD' | 'VIRTUAL_ACCOUNT',
+        method: data.paymentMethod as any,
         amount: { currency: 'KRW', value: finalAmount },
         orderId: order.id,
         orderName,
