@@ -7,23 +7,15 @@ import dynamic from 'next/dynamic';
 
 const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
-interface Category {
-  id: string;
-  name: string;
-  parentId: string | null;
-  children?: Category[];
-}
-
-interface UploadedImage {
-  url: string;
-  isPrimary: boolean;
-  uploading?: boolean;
-}
+interface Category { id: string; name: string; parentId: string | null; children?: Category[]; }
+interface Group { id: string; name: string; pointRate: number; }
+interface UploadedImage { url: string; isPrimary: boolean; uploading?: boolean; }
 
 export default function NewProductPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [images, setImages] = useState<UploadedImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -31,6 +23,8 @@ export default function NewProductPage() {
 
   const [selectedMainId, setSelectedMainId] = useState('');
   const [selectedSubId, setSelectedSubId] = useState('');
+  const [pointPolicy, setPointPolicy] = useState<'DEFAULT' | 'CUSTOM'>('DEFAULT');
+  const [customPointRates, setCustomPointRates] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     name: '',
@@ -42,6 +36,7 @@ export default function NewProductPage() {
     unit: '',
     specifications: '',
     price: '',
+    costPrice: '',
     stockQuantity: '0',
     minOrderQty: '1',
     maxOrderQty: '',
@@ -54,9 +49,18 @@ export default function NewProductPage() {
     isOnSale: true,
   });
 
+  const price = Number(form.price) || 0;
+  const costPrice = Number(form.costPrice) || 0;
+  const margin = price > 0 && costPrice > 0 ? ((price - costPrice) / price * 100).toFixed(1) : null;
+  const profit = price > 0 && costPrice > 0 ? price - costPrice : null;
+
   useEffect(() => {
-    adminApi.get('/admin/categories').then(({ data }) => {
-      setCategories(data);
+    Promise.all([
+      adminApi.get('/admin/categories'),
+      adminApi.get('/admin/groups'),
+    ]).then(([catRes, grpRes]) => {
+      setCategories(catRes.data);
+      setGroups(grpRes.data);
     });
   }, []);
 
@@ -158,12 +162,21 @@ export default function NewProductPage() {
     setError('');
     setLoading(true);
     try {
+      const rates: Record<string, number> = {};
+      if (pointPolicy === 'CUSTOM') {
+        for (const [gid, val] of Object.entries(customPointRates)) {
+          if (val !== '') rates[gid] = Number(val);
+        }
+      }
       const { data } = await adminApi.post('/admin/products', {
         ...form,
         price: Number(form.price),
+        costPrice: form.costPrice ? Number(form.costPrice) : null,
         stockQuantity: Number(form.stockQuantity),
         minOrderQty: Number(form.minOrderQty),
         maxOrderQty: form.maxOrderQty ? Number(form.maxOrderQty) : null,
+        pointPolicy,
+        customPointRates: pointPolicy === 'CUSTOM' ? rates : null,
       });
       for (const img of images) {
         await adminApi.post(`/admin/products/${data.id}/images`, {
@@ -257,7 +270,22 @@ export default function NewProductPage() {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-800 mb-4">가격 / 재고</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {field('가격 (원)', 'price', 'number', true)}
+            {field('판매가 (원)', 'price', 'number', true)}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">공급가 (원)</label>
+              <input
+                type="number"
+                value={form.costPrice}
+                onChange={(e) => set('costPrice', e.target.value)}
+                placeholder="원가 입력 (내부 관리용)"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              {margin !== null && (
+                <p className={`mt-1 text-xs font-medium ${Number(margin) >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                  마진율 {margin}% · 이익 {profit?.toLocaleString()}원
+                </p>
+              )}
+            </div>
             {field('재고 수량', 'stockQuantity', 'number')}
             {field('최소 주문 수량', 'minOrderQty', 'number')}
             {field('최대 주문 수량 (미입력 시 무제한)', 'maxOrderQty', 'number')}
@@ -368,6 +396,55 @@ export default function NewProductPage() {
               </label>
             </div>
           </div>
+        </div>
+
+        {/* 와이즈 적립률 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-semibold text-gray-800 mb-1">와이즈 적립률</h2>
+          <p className="text-xs text-gray-400 mb-4">배송 완료 시 구매 금액 기준으로 포인트를 적립합니다.</p>
+          <div className="flex gap-6 mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" checked={pointPolicy === 'DEFAULT'} onChange={() => setPointPolicy('DEFAULT')} className="accent-blue-600" />
+              <span className="text-sm text-gray-700">기본 설정 사용 <span className="text-gray-400">(그룹별 설정 따름)</span></span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" checked={pointPolicy === 'CUSTOM'} onChange={() => setPointPolicy('CUSTOM')} className="accent-blue-600" />
+              <span className="text-sm text-gray-700">개별 설정</span>
+            </label>
+          </div>
+          {pointPolicy === 'CUSTOM' && (
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">그룹</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">그룹 기본 적립률</th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">이 상품 개별 적립률 (%)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {groups.map((g) => (
+                    <tr key={g.id}>
+                      <td className="px-4 py-2 font-medium text-gray-700">{g.name}</td>
+                      <td className="px-4 py-2 text-gray-400">{g.pointRate}%</td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={customPointRates[g.id] ?? ''}
+                          onChange={(e) => setCustomPointRates((prev) => ({ ...prev, [g.id]: e.target.value }))}
+                          placeholder={String(g.pointRate)}
+                          className="w-24 border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3">

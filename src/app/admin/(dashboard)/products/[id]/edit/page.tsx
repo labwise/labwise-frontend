@@ -7,6 +7,8 @@ import dynamic from 'next/dynamic';
 
 const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
+interface Group { id: string; name: string; pointRate: number; }
+
 interface Category {
   id: string;
   name: string;
@@ -24,6 +26,7 @@ export default function EditProductPage() {
   const { id } = useParams<{ id: string }>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [images, setImages] = useState<ProductImage[]>([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,25 +36,40 @@ export default function EditProductPage() {
 
   const [selectedMainId, setSelectedMainId] = useState('');
   const [selectedSubId, setSelectedSubId] = useState('');
+  const [pointPolicy, setPointPolicy] = useState<'DEFAULT' | 'CUSTOM'>('DEFAULT');
+  const [customPointRates, setCustomPointRates] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     name: '', slug: '', categoryId: '', sku: '', manufacturer: '',
-    casNumber: '', unit: '', specifications: '', price: '',
+    casNumber: '', unit: '', specifications: '', price: '', costPrice: '',
     stockQuantity: '0', minOrderQty: '1', maxOrderQty: '',
     description: '', sdsFileUrl: '', countryOfOrigin: '',
     taxType: 'TAXABLE', isActive: true, isDisplayed: true, isOnSale: true,
   });
+
+  const price = Number(form.price) || 0;
+  const costPrice = Number(form.costPrice) || 0;
+  const margin = price > 0 && costPrice > 0 ? ((price - costPrice) / price * 100).toFixed(1) : null;
+  const profit = price > 0 && costPrice > 0 ? price - costPrice : null;
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       adminApi.get('/admin/categories'),
       adminApi.get(`/admin/products/${id}`),
-    ]).then(([catRes, prodRes]) => {
+      adminApi.get('/admin/groups'),
+    ]).then(([catRes, prodRes, grpRes]) => {
       const cats: Category[] = catRes.data;
       setCategories(cats);
+      setGroups(grpRes.data);
       const p = prodRes.data;
       setImages(p.images ?? []);
+      setPointPolicy(p.pointPolicy === 'CUSTOM' ? 'CUSTOM' : 'DEFAULT');
+      if (p.pointPolicy === 'CUSTOM' && p.customPointRates) {
+        const strRates: Record<string, string> = {};
+        for (const [k, v] of Object.entries(p.customPointRates)) strRates[k] = String(v);
+        setCustomPointRates(strRates);
+      }
 
       // Determine main/sub from categoryId
       const catId = p.categoryId ?? '';
@@ -70,6 +88,7 @@ export default function EditProductPage() {
         name: p.name ?? '', slug: p.slug ?? '', categoryId: p.categoryId ?? '',
         sku: p.sku ?? '', manufacturer: p.manufacturer ?? '', casNumber: p.casNumber ?? '',
         unit: p.unit ?? '', specifications: p.specifications ?? '', price: String(p.price ?? ''),
+        costPrice: p.costPrice ? String(p.costPrice) : '',
         stockQuantity: String(p.stockQuantity ?? 0), minOrderQty: String(p.minOrderQty ?? 1),
         maxOrderQty: p.maxOrderQty ? String(p.maxOrderQty) : '',
         description: p.description ?? '', sdsFileUrl: p.sdsFileUrl ?? '',
@@ -155,9 +174,19 @@ export default function EditProductPage() {
       await adminApi.put(`/admin/products/${id}`, {
         ...form,
         price: Number(form.price),
+        costPrice: form.costPrice ? Number(form.costPrice) : undefined,
         stockQuantity: Number(form.stockQuantity),
         minOrderQty: Number(form.minOrderQty),
         maxOrderQty: form.maxOrderQty ? Number(form.maxOrderQty) : null,
+        pointPolicy,
+        customPointRates:
+          pointPolicy === 'CUSTOM'
+            ? Object.fromEntries(
+                Object.entries(customPointRates)
+                  .filter(([, v]) => v !== '')
+                  .map(([k, v]) => [k, Number(v)])
+              )
+            : undefined,
       });
       router.push('/admin/products');
     } catch (err: unknown) {
@@ -245,7 +274,22 @@ export default function EditProductPage() {
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-800 mb-4">가격 / 재고</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {field('가격 (원)', 'price', 'number')}
+            {field('판매가 (원)', 'price', 'number')}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">공급가 (원)</label>
+              <input
+                type="number"
+                value={form.costPrice}
+                onChange={(e) => set('costPrice', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="선택 입력"
+              />
+              {margin !== null && (
+                <p className="mt-1 text-xs text-emerald-600">
+                  마진 {margin}% · 이익 {profit?.toLocaleString()}원
+                </p>
+              )}
+            </div>
             {field('재고 수량', 'stockQuantity', 'number')}
             {field('최소 주문 수량', 'minOrderQty', 'number')}
             {field('최대 주문 수량 (미입력 시 무제한)', 'maxOrderQty', 'number')}
@@ -345,6 +389,53 @@ export default function EditProductPage() {
               </label>
             </div>
           </div>
+        </div>
+
+        {/* 적립금 정책 */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-semibold text-gray-800 mb-4">적립금 정책</h2>
+          <div className="flex gap-6 mb-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" checked={pointPolicy === 'DEFAULT'} onChange={() => setPointPolicy('DEFAULT')} />
+              <span className="text-sm text-gray-700">기본 설정 (그룹별 기본 적립율 적용)</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input type="radio" checked={pointPolicy === 'CUSTOM'} onChange={() => setPointPolicy('CUSTOM')} />
+              <span className="text-sm text-gray-700">개별 설정</span>
+            </label>
+          </div>
+          {pointPolicy === 'CUSTOM' && groups.length > 0 && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-gray-600 font-medium">회원 그룹</th>
+                    <th className="px-4 py-2 text-left text-gray-600 font-medium">기본 적립율</th>
+                    <th className="px-4 py-2 text-left text-gray-600 font-medium">개별 적립율 (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map((g) => (
+                    <tr key={g.id} className="border-t border-gray-100">
+                      <td className="px-4 py-2 text-gray-700">{g.name}</td>
+                      <td className="px-4 py-2 text-gray-500">{g.pointRate}%</td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          value={customPointRates[g.id] ?? ''}
+                          onChange={(e) => setCustomPointRates((prev) => ({ ...prev, [g.id]: e.target.value }))}
+                          placeholder={String(g.pointRate)}
+                          className="w-24 border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end gap-3">

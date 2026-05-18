@@ -10,6 +10,7 @@ export interface Product {
   specifications?: string;
   unit?: string;
   price: number;
+  costPrice?: number;
   effectivePrice?: number;
   stockQuantity: number;
   minOrderQty: number;
@@ -19,6 +20,8 @@ export interface Product {
   isOnSale: boolean;
   taxType: 'TAXABLE' | 'ZERO_RATE' | 'TAX_EXEMPT';
   countryOfOrigin?: string;
+  pointPolicy: 'DEFAULT' | 'CUSTOM';
+  customPointRates?: Record<string, number>;
   description?: string;
   sdsFileUrl?: string;
   images: ProductImage[];
