@@ -127,6 +127,18 @@ export default function IntegrationsPage() {
       setSettings(map as any);
       setForms(fmap as any);
       setEnabled(emap as any);
+    }).catch(() => {
+      const map: Record<string, IntegrationSetting> = {};
+      const fmap: Record<string, Record<string, string>> = {};
+      const emap: Record<string, boolean> = {};
+      for (const p of ORDER) {
+        map[p] = { provider: p, isEnabled: false, updatedAt: null, config: {} };
+        fmap[p] = {};
+        emap[p] = false;
+      }
+      setSettings(map as any);
+      setForms(fmap as any);
+      setEnabled(emap as any);
     }).finally(() => setLoading(false));
   }, []);
 
