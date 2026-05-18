@@ -2,7 +2,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import adminApi from '@/lib/admin-api';
-import { Trash2, Upload, Sparkles, Loader2 } from 'lucide-react';
+import { Trash2, Upload, Loader2 } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
 interface Category {
   id: string;
@@ -302,24 +305,28 @@ export default function EditProductPage() {
           <h2 className="font-semibold text-gray-800 mb-4">상세 정보</h2>
           <div className="space-y-4">
             <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-gray-700">상품 설명</label>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-sm font-medium text-gray-700">상품 상세 설명</label>
                 <button
                   type="button"
                   onClick={generateDescription}
                   disabled={aiLoading}
                   className="flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700 disabled:opacity-50"
                 >
-                  {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  {aiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : '✦'}
                   {aiLoading ? 'AI 생성 중...' : 'AI로 설명 생성'}
                 </button>
               </div>
-              <textarea
+              <RichTextEditor
                 value={form.description}
-                onChange={(e) => set('description', e.target.value)}
-                rows={6}
-                placeholder="상품 설명을 직접 입력하거나 AI 생성 버튼을 사용하세요."
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={(html) => set('description', html)}
+                onImageUpload={async (file) => {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  const { data } = await adminApi.post('/admin/uploads/image', fd);
+                  return data.url;
+                }}
+                placeholder="상품 상세 설명을 입력하세요. 이미지, 표, 링크 등을 삽입할 수 있습니다."
               />
             </div>
             {field('SDS 파일 URL', 'sdsFileUrl')}
