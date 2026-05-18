@@ -9,6 +9,7 @@ interface AuthUser {
   groupId: string;
   isVerified: boolean;
   hasPointmallAccess: boolean;
+  taxInvoiceEnabled?: boolean;
 }
 
 interface AuthState {
