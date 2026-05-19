@@ -1,7 +1,9 @@
 import axios from 'axios';
 
 const adminApi = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: typeof window !== 'undefined'
+    ? '/api'
+    : (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api'),
 });
 
 adminApi.interceptors.request.use((config) => {
