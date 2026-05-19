@@ -20,7 +20,6 @@ import {
   Globe,
   KeyRound,
   BarChart2,
-  Coins,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -57,8 +56,7 @@ const navGroups: NavGroup[] = [
   {
     groupLabel: '통계',
     items: [
-      { href: '/admin/analytics', label: '매출 · 수익', icon: BarChart2 },
-      { href: '/admin/analytics?tab=points', label: '포인트 분석', icon: Coins },
+      { href: '/admin/analytics', label: '통계 / 분석', icon: BarChart2, exact: true },
     ],
   },
   {
