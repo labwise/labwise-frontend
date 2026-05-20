@@ -20,6 +20,9 @@ import {
   Globe,
   KeyRound,
   BarChart2,
+  Trophy,
+  Clock,
+  UserX,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -47,7 +50,17 @@ const navGroups: NavGroup[] = [
   {
     groupLabel: '회원 관리',
     items: [
-      { href: '/admin/users', label: '회원 관리', icon: Users },
+      {
+        href: '/admin/users',
+        label: '회원 관리',
+        icon: Users,
+        children: [
+          { href: '/admin/users', label: '전체 회원', icon: Users },
+          { href: '/admin/users/top-buyers', label: '구매액 상위', icon: Trophy },
+          { href: '/admin/users/dormant', label: '휴면 회원', icon: Clock },
+          { href: '/admin/users/withdrawn', label: '탈퇴 회원', icon: UserX },
+        ],
+      },
       { href: '/admin/groups', label: '그룹 관리', icon: Layers },
     ],
   },
@@ -84,7 +97,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const { admin, token, logout, _hydrated } = useAdminAuthStore();
-  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['/admin/integrations']));
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['/admin/integrations', '/admin/users']));
 
   useEffect(() => {
     if (_hydrated && !token) router.push('/admin/login');
