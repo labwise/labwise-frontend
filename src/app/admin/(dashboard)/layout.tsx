@@ -23,6 +23,8 @@ import {
   Trophy,
   Clock,
   UserX,
+  MessageSquare,
+  StarIcon,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -69,6 +71,13 @@ const navGroups: NavGroup[] = [
     items: [
       { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
       { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
+    ],
+  },
+  {
+    groupLabel: '게시판 · 리뷰',
+    items: [
+      { href: '/admin/boards', label: '게시판 관리', icon: MessageSquare },
+      { href: '/admin/reviews', label: '리뷰 관리', icon: StarIcon },
     ],
   },
   {

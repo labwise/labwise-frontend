@@ -7,7 +7,7 @@ import { formatPrice } from '@/lib/utils';
 
 // ── 타입 ──────────────────────────────────────────────────────────────────────
 
-type OrderStatus = 'PENDING' | 'PAID' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'REFUNDED';
+type OrderStatus = 'PENDING' | 'PAID' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'CONFIRMED' | 'CANCELLED' | 'REFUNDED';
 
 interface OrderItem {
   id: string;
@@ -43,6 +43,7 @@ const TABS: { value: OrderStatus | ''; label: string; color: string }[] = [
   { value: 'PREPARING', label: '배송준비중', color: 'text-indigo-600' },
   { value: 'SHIPPED', label: '배송중', color: 'text-purple-600' },
   { value: 'DELIVERED', label: '배송완료', color: 'text-green-600' },
+  { value: 'CONFIRMED', label: '구매확정', color: 'text-emerald-600' },
   { value: 'CANCELLED', label: '취소/환불', color: 'text-gray-400' },
 ];
 
@@ -52,6 +53,7 @@ const STATUS_BADGE: Record<OrderStatus, string> = {
   PREPARING: 'bg-indigo-100 text-indigo-700',
   SHIPPED: 'bg-purple-100 text-purple-700',
   DELIVERED: 'bg-green-100 text-green-700',
+  CONFIRMED: 'bg-emerald-100 text-emerald-700',
   CANCELLED: 'bg-gray-100 text-gray-500',
   REFUNDED: 'bg-red-100 text-red-600',
 };
@@ -62,6 +64,7 @@ const STATUS_LABEL: Record<OrderStatus, string> = {
   PREPARING: '배송준비중',
   SHIPPED: '배송중',
   DELIVERED: '배송완료',
+  CONFIRMED: '구매확정',
   CANCELLED: '취소됨',
   REFUNDED: '환불됨',
 };
@@ -71,6 +74,7 @@ const NEXT_STATUS: Partial<Record<OrderStatus, { to: OrderStatus; label: string;
   PAID: { to: 'PREPARING', label: '배송준비', color: 'bg-indigo-600 hover:bg-indigo-700 text-white' },
   PREPARING: { to: 'SHIPPED', label: '배송중처리', color: 'bg-purple-600 hover:bg-purple-700 text-white' },
   SHIPPED: { to: 'DELIVERED', label: '배송완료', color: 'bg-green-600 hover:bg-green-700 text-white' },
+  DELIVERED: { to: 'CONFIRMED', label: '구매확정', color: 'bg-emerald-600 hover:bg-emerald-700 text-white' },
 };
 
 const PAYMENT_LABEL: Record<string, string> = {
