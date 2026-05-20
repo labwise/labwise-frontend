@@ -8,7 +8,7 @@ interface Category { id: string; name: string }
 interface Board {
   id: string; name: string; slug: string; type: string;
   isPublic: boolean; requiresLogin: boolean; isActive: boolean;
-  category?: { name: string };
+  category?: { id: string; name: string };
 }
 
 const TYPE_LABELS: Record<string, string> = {
