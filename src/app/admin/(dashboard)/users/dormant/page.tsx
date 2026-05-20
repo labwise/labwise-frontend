@@ -14,34 +14,31 @@ interface User {
   group?: { name: string };
 }
 
-const MONTH_OPTIONS = [3, 6, 12, 24];
-
 export default function DormantUsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
-  const [months, setMonths] = useState(6);
   const [loading, setLoading] = useState(true);
   const limit = 20;
 
   useEffect(() => {
     setLoading(true);
     adminApi
-      .get('/admin/users/dormant', { params: { page, limit, months, search: query || undefined } })
+      .get('/admin/users/dormant', { params: { page, limit, search: query || undefined } })
       .then(({ data }) => {
         setUsers(data.items ?? []);
         setTotal(data.total ?? 0);
       })
       .finally(() => setLoading(false));
-  }, [page, query, months]);
+  }, [page, query]);
 
   const totalPages = Math.ceil(total / limit);
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-2">
         <Link href="/admin/users" className="text-gray-400 hover:text-gray-600 text-sm">← 회원 관리</Link>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Clock size={20} className="text-orange-400" />
@@ -49,8 +46,9 @@ export default function DormantUsersPage() {
         </h1>
         <span className="ml-auto text-sm text-gray-500">총 {total.toLocaleString()}명</span>
       </div>
+      <p className="text-xs text-gray-400 mb-4 ml-1">12개월 이상 미접속 회원이 자동으로 분류됩니다. 로그인 시 자동으로 정상 상태로 복구됩니다.</p>
 
-      <div className="flex flex-wrap gap-2 mb-4">
+      <div className="flex gap-2 mb-4">
         <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -61,15 +59,6 @@ export default function DormantUsersPage() {
             className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
-        <select
-          value={months}
-          onChange={(e) => { setMonths(Number(e.target.value)); setPage(1); }}
-          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
-        >
-          {MONTH_OPTIONS.map((m) => (
-            <option key={m} value={m}>{m}개월 이상 미접속</option>
-          ))}
-        </select>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -87,7 +76,7 @@ export default function DormantUsersPage() {
             {loading ? (
               <tr><td colSpan={5} className="text-center py-10 text-gray-400">불러오는 중...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={5} className="text-center py-10 text-gray-400">해당 조건의 휴면 회원이 없습니다</td></tr>
+              <tr><td colSpan={5} className="text-center py-10 text-gray-400">휴면 회원이 없습니다</td></tr>
             ) : (
               users.map((u) => (
                 <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50">

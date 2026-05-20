@@ -20,8 +20,8 @@ interface Order {
   createdAt: string; items: OrderItem[];
 }
 
-const USER_STATUSES = ['ACTIVE', 'SUSPENDED', 'WITHDRAWN'];
-const STATUS_LABELS: Record<string, string> = { ACTIVE: '정상', SUSPENDED: '정지', WITHDRAWN: '탈퇴' };
+const USER_STATUSES = ['ACTIVE', 'DORMANT', 'SUSPENDED', 'WITHDRAWN'];
+const STATUS_LABELS: Record<string, string> = { ACTIVE: '정상', DORMANT: '휴면', SUSPENDED: '정지', WITHDRAWN: '탈퇴' };
 const ORDER_STATUS_LABELS: Record<string, string> = {
   PENDING: '입금대기', PAID: '결제완료', PREPARING: '준비중',
   SHIPPED: '배송중', DELIVERED: '배송완료', CANCELLED: '취소', REFUNDED: '환불',

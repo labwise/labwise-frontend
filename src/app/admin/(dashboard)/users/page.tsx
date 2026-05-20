@@ -5,10 +5,11 @@ import adminApi from '@/lib/admin-api';
 import { Search, Trophy, UserX, Clock } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
-  ACTIVE: '정상', SUSPENDED: '정지', WITHDRAWN: '탈퇴',
+  ACTIVE: '정상', DORMANT: '휴면', SUSPENDED: '정지', WITHDRAWN: '탈퇴',
 };
 const STATUS_COLORS: Record<string, string> = {
   ACTIVE: 'bg-green-100 text-green-700',
+  DORMANT: 'bg-orange-100 text-orange-600',
   SUSPENDED: 'bg-red-100 text-red-600',
   WITHDRAWN: 'bg-gray-100 text-gray-400',
 };
