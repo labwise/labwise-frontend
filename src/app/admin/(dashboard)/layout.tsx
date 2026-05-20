@@ -45,10 +45,15 @@ const navGroups: NavGroup[] = [
     ],
   },
   {
-    groupLabel: '회원 · 마케팅',
+    groupLabel: '회원 관리',
     items: [
       { href: '/admin/users', label: '회원 관리', icon: Users },
       { href: '/admin/groups', label: '그룹 관리', icon: Layers },
+    ],
+  },
+  {
+    groupLabel: '마케팅',
+    items: [
       { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
       { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
     ],
