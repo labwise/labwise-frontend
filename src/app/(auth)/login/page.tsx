@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
@@ -21,6 +21,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+const SAVED_EMAIL_KEY = 'labwise_saved_email';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 export default function LoginPage() {
@@ -28,16 +29,31 @@ export default function LoginPage() {
   const { setAuth } = useAuthStore();
   const { mergeGuestCart } = useCartStore();
   const [error, setError] = useState('');
+  const [saveId, setSaveId] = useState(false);
   const { hasGoogle, hasKakao, hasNaver, hasSocial } = useActiveIntegrations();
 
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVED_EMAIL_KEY);
+    if (saved) {
+      setValue('email', saved);
+      setSaveId(true);
+    }
+  }, [setValue]);
+
   const onSubmit = async (data: FormData) => {
     setError('');
+    if (saveId) {
+      localStorage.setItem(SAVED_EMAIL_KEY, data.email);
+    } else {
+      localStorage.removeItem(SAVED_EMAIL_KEY);
+    }
     try {
       const { data: res } = await api.post('/auth/login', data);
       setAuth(res.user, res.accessToken, res.refreshToken);
@@ -114,6 +130,21 @@ export default function LoginPage() {
               {...register('password')}
               error={errors.password?.message}
             />
+
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={saveId}
+                  onChange={(e) => setSaveId(e.target.checked)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <span className="text-sm text-gray-600">아이디 저장</span>
+              </label>
+              <Link href="/find-account" className="text-sm text-blue-600 hover:text-blue-700">
+                아이디 · 비밀번호 찾기
+              </Link>
+            </div>
 
             {error && (
               <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>

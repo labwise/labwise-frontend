@@ -1,21 +1,37 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAdminAuthStore } from '@/store/admin-auth.store';
 import adminApi from '@/lib/admin-api';
+
+const SAVED_ADMIN_EMAIL_KEY = 'labwise_admin_saved_email';
 
 export default function AdminLoginPage() {
   const router = useRouter();
   const { setAuth } = useAdminAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [saveId, setSaveId] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(SAVED_ADMIN_EMAIL_KEY);
+    if (saved) {
+      setEmail(saved);
+      setSaveId(true);
+    }
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
+    if (saveId) {
+      localStorage.setItem(SAVED_ADMIN_EMAIL_KEY, email);
+    } else {
+      localStorage.removeItem(SAVED_ADMIN_EMAIL_KEY);
+    }
     try {
       const { data } = await adminApi.post('/admin/auth/login', { email, password });
       setAuth(data.admin, data.accessToken);
@@ -56,6 +72,17 @@ export default function AdminLoginPage() {
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={saveId}
+              onChange={(e) => setSaveId(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-600">아이디 저장</span>
+          </label>
+
           <button
             type="submit"
             disabled={loading}
