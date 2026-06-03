@@ -8,7 +8,7 @@ import { Star } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { PointProduct } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
-import { formatWise } from '@/lib/utils';
+import { formatPrice, formatWise } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 
 interface PointProductsResponse {
