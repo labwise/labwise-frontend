@@ -9,6 +9,10 @@ export function formatPrice(amount: number): string {
   return new Intl.NumberFormat('ko-KR').format(amount) + '원';
 }
 
+export function formatWise(amount: number): string {
+  return new Intl.NumberFormat('ko-KR').format(amount) + 'W';
+}
+
 export function formatDate(date: string | Date): string {
   return new Intl.DateTimeFormat('ko-KR', {
     year: 'numeric',

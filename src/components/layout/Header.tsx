@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ShoppingCart, User, Search, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
-import { formatPrice } from '@/lib/utils';
+import { formatWise } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { Logo } from '@/components/Logo';
 import { useQuery } from '@tanstack/react-query';
@@ -46,9 +46,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center py-2">
-            <Logo className="h-14 w-auto" />
+        <div className="flex h-20 items-center justify-between">
+          <Link href="/" className="flex items-center py-3">
+            <Logo className="h-16 w-auto" />
           </Link>
 
           <div className="mx-8 hidden flex-1 max-w-lg md:block">
@@ -87,7 +87,7 @@ export function Header() {
                 >
                   <User className="h-4 w-4" />
                   <span>{user.name}</span>
-                  <span className="text-blue-600">({formatPrice(user.pointBalance)}W)</span>
+                  <span className="text-blue-600">({formatWise(user.pointBalance)})</span>
                 </Link>
                 <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500">
                   <LogOut className="h-5 w-5" />

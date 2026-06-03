@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Order } from '@/types';
-import { formatPrice, formatDateTime } from '@/lib/utils';
+import { formatPrice, formatWise, formatDateTime } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
@@ -174,8 +174,8 @@ export default function OrderDetailPage() {
           </div>
           {order.pointUsed > 0 && (
             <div className="flex justify-between text-blue-600">
-              <span>포인트 사용</span>
-              <span>-{formatPrice(order.pointUsed)}</span>
+              <span>와이즈 사용</span>
+              <span>-{formatWise(order.pointUsed)}</span>
             </div>
           )}
           <div className="flex justify-between">

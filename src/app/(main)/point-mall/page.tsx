@@ -8,7 +8,7 @@ import { Star } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { PointProduct } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
-import { formatPrice } from '@/lib/utils';
+import { formatWise } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
 
 interface PointProductsResponse {
@@ -66,7 +66,7 @@ export default function PointMallPage() {
           {user && (
             <div className="text-right">
               <p className="text-sm text-blue-200">보유 와이즈</p>
-              <p className="text-2xl font-bold">{formatPrice(user.pointBalance)}W</p>
+              <p className="text-2xl font-bold">{formatWise(user.pointBalance)}</p>
             </div>
           )}
         </div>
@@ -108,7 +108,7 @@ export default function PointMallPage() {
                   <p className="mb-auto text-xs text-gray-400">{product.category}</p>
                   <div className="mt-3">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-blue-600">{formatPrice(product.requiredPoints)}W</p>
+                      <p className="font-bold text-blue-600">{formatWise(product.requiredPoints)}</p>
                       {product.referencePrice && (
                         <p className="text-xs text-gray-400">약 {formatPrice(product.referencePrice)}</p>
                       )}

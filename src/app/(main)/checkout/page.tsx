@@ -9,7 +9,7 @@ import { MapPin } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, formatWise } from '@/lib/utils';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
 
@@ -231,7 +231,7 @@ export default function CheckoutPage() {
                 <h2 className="mb-4 font-semibold text-gray-900">와이즈 사용</h2>
                 <div className="flex items-center gap-3">
                   <p className="text-sm text-gray-500">
-                    보유 와이즈: <span className="font-medium text-blue-600">{formatPrice(user.pointBalance)}W</span>
+                    보유 와이즈: <span className="font-medium text-blue-600">{formatWise(user.pointBalance)}</span>
                   </p>
                   <div className="flex flex-1 items-center gap-2">
                     <input
@@ -321,7 +321,7 @@ export default function CheckoutPage() {
                 {appliedPoints > 0 && (
                   <div className="flex justify-between text-blue-600">
                     <span>와이즈 할인</span>
-                    <span>-{formatPrice(appliedPoints)}</span>
+                    <span>-{formatWise(appliedPoints)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { PointLedger } from '@/types';
 import { useAuthStore } from '@/store/auth.store';
-import { formatPrice, formatDateTime } from '@/lib/utils';
+import { formatWise, formatDateTime } from '@/lib/utils';
 
 const typeLabels: Record<string, string> = {
   EARN: '와이즈 적립',
@@ -31,7 +31,7 @@ export default function PointsPage() {
     <div className="space-y-4">
       <div className="rounded-xl border border-blue-100 bg-blue-50 p-4 flex justify-between items-center">
         <span className="text-sm font-medium text-blue-700">보유 와이즈</span>
-        <span className="text-xl font-bold text-blue-600">{formatPrice(user?.pointBalance ?? 0)}W</span>
+        <span className="text-xl font-bold text-blue-600">{formatWise(user?.pointBalance ?? 0)}</span>
       </div>
 
       {isLoading ? (
@@ -53,9 +53,9 @@ export default function PointsPage() {
               </div>
               <div className="text-right">
                 <p className={`font-semibold ${item.amount > 0 ? 'text-blue-600' : 'text-red-500'}`}>
-                  {item.amount > 0 ? '+' : ''}{formatPrice(item.amount)}W
+                  {item.amount > 0 ? '+' : ''}{formatWise(item.amount)}
                 </p>
-                <p className="text-xs text-gray-400">잔액: {formatPrice(item.balanceAfter)}W</p>
+                <p className="text-xs text-gray-400">잔액: {formatWise(item.balanceAfter)}</p>
               </div>
             </div>
           ))}

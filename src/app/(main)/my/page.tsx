@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuthStore } from '@/store/auth.store';
-import { formatPrice } from '@/lib/utils';
+import { formatWise } from '@/lib/utils';
 import { User, Mail, Phone, Star } from 'lucide-react';
 
 export default function MyPage() {
@@ -33,7 +33,7 @@ export default function MyPage() {
             <Star className="h-5 w-5 text-blue-600" />
             <h2 className="font-semibold text-blue-900">보유 와이즈</h2>
           </div>
-          <p className="text-2xl font-bold text-blue-600">{formatPrice(user.pointBalance)}W</p>
+          <p className="text-2xl font-bold text-blue-600">{formatWise(user.pointBalance)}</p>
         </div>
         <p className="mt-2 text-sm text-blue-500">와이즈는 주문 시 할인에 사용할 수 있습니다</p>
       </div>

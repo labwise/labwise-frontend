@@ -401,7 +401,7 @@ export default function NewProductPage() {
         {/* 와이즈 적립률 */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-800 mb-1">와이즈 적립률</h2>
-          <p className="text-xs text-gray-400 mb-4">배송 완료 시 구매 금액 기준으로 포인트를 적립합니다.</p>
+          <p className="text-xs text-gray-400 mb-4">구매 확정 시 구매 금액 기준으로 와이즈를 적립합니다.</p>
           <div className="flex gap-6 mb-4">
             <label className="flex items-center gap-2 cursor-pointer">
               <input type="radio" checked={pointPolicy === 'DEFAULT'} onChange={() => setPointPolicy('DEFAULT')} className="accent-blue-600" />

@@ -63,7 +63,7 @@ export default function AnalyticsPage() {
 
       {/* 탭 */}
       <div className="flex gap-1 rounded-xl bg-gray-100 p-1 w-fit">
-        {([['sales', '매출 · 수익'], ['points', '포인트 분석']] as [Tab, string][]).map(([key, label]) => (
+        {([['sales', '매출 · 수익'], ['points', '와이즈 분석']] as [Tab, string][]).map(([key, label]) => (
           <button
             key={key}
             onClick={() => {
@@ -175,15 +175,15 @@ export default function AnalyticsPage() {
           {/* KPI */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
             <KpiCard
-              label="누적 적립 포인트"
-              value={`${data.totalPointsIssued.toLocaleString()}P`}
+              label="누적 적립 와이즈"
+              value={`${data.totalPointsIssued.toLocaleString()}W`}
               sub="구매 적립 + 관리자 지급"
               color="bg-violet-500"
               icon={Coins}
             />
             <KpiCard
-              label="누적 사용 포인트"
-              value={`${data.totalPointsUsed.toLocaleString()}P`}
+              label="누적 사용 와이즈"
+              value={`${data.totalPointsUsed.toLocaleString()}W`}
               sub="주문 결제 + 와이즈몰"
               color="bg-pink-500"
               icon={Coins}
