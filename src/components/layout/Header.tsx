@@ -35,7 +35,7 @@ export function Header() {
       const { data } = await api.get('/categories');
       return data;
     },
-    staleTime: 1000 * 60 * 5,
+    staleTime: 1000 * 30,
   });
 
   const handleLogout = async () => {

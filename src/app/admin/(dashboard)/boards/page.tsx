@@ -43,6 +43,8 @@ export default function BoardsPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...INIT_FORM });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
   const [editId, setEditId] = useState<string | null>(null);
 
   const load = () => {
@@ -81,14 +83,22 @@ export default function BoardsPage() {
     setShowForm(true);
   }
 
-  async function del(id: string) {
-    if (!confirm('게시판을 비활성화하시겠습니까?')) return;
-    await adminApi.delete(`/admin/boards/${id}`);
-    load();
+  async function confirmDelete(id: string) {
+    setDeleteError('');
+    try {
+      await adminApi.delete(`/admin/boards/${id}`);
+      setDeletingId(null);
+      load();
+    } catch (e: any) {
+      setDeleteError(e.response?.data?.message ?? '삭제에 실패했습니다.');
+    }
   }
 
   return (
     <div>
+      {deleteError && (
+        <div className="mb-4 rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{deleteError}</div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl font-bold text-gray-900">게시판 관리</h1>
         <button
@@ -187,9 +197,16 @@ export default function BoardsPage() {
                       <button onClick={() => startEdit(b)} title="수정">
                         <Pencil size={15} className="text-gray-400 hover:text-gray-600" />
                       </button>
-                      <button onClick={() => del(b.id)} title="삭제">
-                        <Trash2 size={15} className="text-red-400 hover:text-red-600" />
-                      </button>
+                      {deletingId === b.id ? (
+                        <span className="flex items-center gap-1">
+                          <button onClick={() => confirmDelete(b.id)} className="text-xs text-red-600 font-medium hover:underline">확인</button>
+                          <button onClick={() => { setDeletingId(null); setDeleteError(''); }} className="text-xs text-gray-400 hover:underline">취소</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => { setDeletingId(b.id); setDeleteError(''); }} title="삭제">
+                          <Trash2 size={15} className="text-red-400 hover:text-red-600" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

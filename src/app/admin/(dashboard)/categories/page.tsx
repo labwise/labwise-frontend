@@ -31,6 +31,8 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
   const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => { load(); }, []);
 
@@ -94,10 +96,18 @@ export default function AdminCategoriesPage() {
   }
 
   async function handleDelete(cat: Category) {
-    if ((cat.children?.length ?? 0) > 0) return alert('서브 카테고리가 있는 카테고리는 삭제할 수 없습니다.');
-    if (!confirm(`"${cat.name}" 카테고리를 삭제하시겠습니까?`)) return;
-    await adminApi.delete(`/admin/categories/${cat.id}`);
-    await load();
+    if ((cat.children?.length ?? 0) > 0) {
+      setDeleteError('서브 카테고리가 있는 카테고리는 삭제할 수 없습니다. 먼저 서브 카테고리를 삭제해주세요.');
+      return;
+    }
+    setDeleteError('');
+    try {
+      await adminApi.delete(`/admin/categories/${cat.id}`);
+      setDeletingId(null);
+      await load();
+    } catch (e: any) {
+      setDeleteError(e.response?.data?.message ?? '삭제에 실패했습니다. 해당 카테고리에 연결된 상품이 있을 수 있습니다.');
+    }
   }
 
   function CategoryRow({ cat, depth = 0 }: { cat: Category; depth?: number }) {
@@ -153,10 +163,17 @@ export default function AdminCategoriesPage() {
                 className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-blue-600">
                 <Pencil className="h-4 w-4" />
               </button>
-              <button onClick={() => handleDelete(cat)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500">
-                <Trash2 className="h-4 w-4" />
-              </button>
+              {deletingId === cat.id ? (
+                <span className="flex items-center gap-1 text-xs">
+                  <button onClick={() => handleDelete(cat)} className="text-red-600 font-medium hover:underline">확인</button>
+                  <button onClick={() => { setDeletingId(null); setDeleteError(''); }} className="text-gray-400 hover:underline">취소</button>
+                </span>
+              ) : (
+                <button onClick={() => { setDeletingId(cat.id); setDeleteError(''); }}
+                  className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              )}
             </div>
           </td>
         </tr>
@@ -167,6 +184,9 @@ export default function AdminCategoriesPage() {
 
   return (
     <div className="space-y-6">
+      {deleteError && (
+        <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-600">{deleteError}</div>
+      )}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">카테고리 관리</h1>

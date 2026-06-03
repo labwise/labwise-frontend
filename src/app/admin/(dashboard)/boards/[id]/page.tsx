@@ -2,8 +2,11 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import adminApi from '@/lib/admin-api';
 import { Pin, Trash2, MessageCircle, Plus, X } from 'lucide-react';
+
+const RichTextEditor = dynamic(() => import('@/components/ui/RichTextEditor'), { ssr: false });
 
 interface Post {
   id: string; title: string; content: string; isSecret: boolean;
@@ -25,6 +28,7 @@ export default function BoardPostsPage() {
   const [showNewPost, setShowNewPost] = useState(false);
   const [newPost, setNewPost] = useState({ title: '', content: '', isPinned: false });
   const [posting, setPosting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const limit = 20;
 
   const loadPosts = () => {
@@ -65,10 +69,14 @@ export default function BoardPostsPage() {
   }
 
   async function deletePost(postId: string) {
-    if (!confirm('삭제하시겠습니까?')) return;
-    await adminApi.delete(`/admin/posts/${postId}`);
-    setPosts((prev) => prev.filter((p) => p.id !== postId));
-    setTotal((t) => t - 1);
+    try {
+      await adminApi.delete(`/admin/posts/${postId}`);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+      setTotal((t) => t - 1);
+      setDeletingId(null);
+    } catch (e: any) {
+      alert(e.response?.data?.message ?? '삭제에 실패했습니다.');
+    }
   }
 
   async function createPost() {
@@ -99,13 +107,20 @@ export default function BoardPostsPage() {
 
       {showNewPost && (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 mb-6">
-          <h2 className="font-semibold mb-3">새 글 작성</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-semibold">새 글 작성</h2>
+            <button onClick={() => setShowNewPost(false)}><X size={16} className="text-gray-400" /></button>
+          </div>
           <input value={newPost.title} onChange={(e) => setNewPost({ ...newPost, title: e.target.value })}
             placeholder="제목"
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <textarea value={newPost.content} onChange={(e) => setNewPost({ ...newPost, content: e.target.value })}
-            placeholder="내용" rows={5}
-            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="mb-3">
+            <RichTextEditor
+              value={newPost.content}
+              onChange={(html) => setNewPost({ ...newPost, content: html })}
+              placeholder="내용을 입력하세요"
+            />
+          </div>
           <label className="flex items-center gap-2 text-sm text-gray-700 mb-3 cursor-pointer">
             <input type="checkbox" checked={newPost.isPinned} onChange={(e) => setNewPost({ ...newPost, isPinned: e.target.checked })} />
             고정글
@@ -155,22 +170,28 @@ export default function BoardPostsPage() {
                   <td className="px-4 py-3 text-center">
                     {p.isAnswered
                       ? <span className="text-xs text-green-600 font-medium">완료</span>
-                      : <span className="text-xs text-orange-500">대기</span>
-                    }
+                      : <span className="text-xs text-orange-500">대기</span>}
                   </td>
                   <td className="px-4 py-3 text-right text-gray-400">{p.viewCount}</td>
                   <td className="px-4 py-3 text-gray-500 text-xs">{new Date(p.createdAt).toLocaleDateString('ko-KR')}</td>
                   <td className="px-4 py-3 text-center">
-                    <div className="flex justify-center gap-2">
-                      <button onClick={() => openPost(p)} title="답변">
+                    <div className="flex justify-center gap-2 items-center">
+                      <button onClick={() => openPost(p)} title="답변/보기">
                         <MessageCircle size={14} className="text-blue-400 hover:text-blue-600" />
                       </button>
                       <button onClick={() => togglePin(p.id)} title="고정">
                         <Pin size={14} className={p.isPinned ? 'text-blue-500' : 'text-gray-300 hover:text-gray-500'} />
                       </button>
-                      <button onClick={() => deletePost(p.id)} title="삭제">
-                        <Trash2 size={14} className="text-red-400 hover:text-red-600" />
-                      </button>
+                      {deletingId === p.id ? (
+                        <span className="flex items-center gap-1 text-xs">
+                          <button onClick={() => deletePost(p.id)} className="text-red-600 font-medium hover:underline">확인</button>
+                          <button onClick={() => setDeletingId(null)} className="text-gray-400 hover:underline">취소</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setDeletingId(p.id)} title="삭제">
+                          <Trash2 size={14} className="text-red-400 hover:text-red-600" />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -201,7 +222,10 @@ export default function BoardPostsPage() {
             </div>
             <div className="p-5">
               <p className="text-xs text-gray-400 mb-3">{selectedPost.user?.name} · {new Date(selectedPost.createdAt).toLocaleString('ko-KR')}</p>
-              <p className="text-gray-700 whitespace-pre-wrap mb-6">{selectedPost.content}</p>
+              <div
+                className="rich-content text-gray-700 mb-6 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: selectedPost.content }}
+              />
 
               {selectedPost.replies && selectedPost.replies.length > 0 && (
                 <div className="bg-blue-50 rounded-lg p-4 mb-4">
