@@ -12,16 +12,30 @@ interface Board {
 }
 
 const TYPE_LABELS: Record<string, string> = {
-  NOTICE: '공지사항', QNA: '1:1문의', FREE: '자유게시판', PRODUCT_QNA: '상품Q&A',
+  NOTICE: '공지사항',
+  GENERAL: '일반 게시판',
+  GALLERY: '갤러리형',
+  QNA: '1:1문의 (시스템)',
+  FREE: '자유게시판 (레거시)',
+  PRODUCT_QNA: '상품Q&A (레거시)',
 };
 const TYPE_COLORS: Record<string, string> = {
   NOTICE: 'bg-blue-100 text-blue-700',
-  QNA: 'bg-purple-100 text-purple-700',
-  FREE: 'bg-gray-100 text-gray-600',
+  GENERAL: 'bg-gray-100 text-gray-700',
+  GALLERY: 'bg-purple-100 text-purple-700',
+  QNA: 'bg-amber-100 text-amber-700',
+  FREE: 'bg-gray-100 text-gray-500',
   PRODUCT_QNA: 'bg-green-100 text-green-700',
 };
 
-const INIT_FORM = { name: '', slug: '', type: 'FREE', categoryId: '', isPublic: true, requiresLogin: false };
+// 어드민이 직접 생성할 수 있는 유형 (QNA/FREE/PRODUCT_QNA는 시스템/레거시)
+const CREATABLE_TYPES = [
+  { value: 'NOTICE', label: '공지사항' },
+  { value: 'GENERAL', label: '일반 게시판' },
+  { value: 'GALLERY', label: '갤러리형 (이미지 나열)' },
+];
+
+const INIT_FORM = { name: '', slug: '', type: 'GENERAL', categoryId: '', isPublic: true, requiresLogin: false };
 
 export default function BoardsPage() {
   const [boards, setBoards] = useState<Board[]>([]);
@@ -103,19 +117,12 @@ export default function BoardsPage() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div>
-              <label className="block text-xs text-gray-500 mb-1">유형</label>
+              <label className="block text-xs text-gray-500 mb-1">게시판 유형</label>
               <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
-                {Object.entries(TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {CREATABLE_TYPES.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
               </select>
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">카테고리 연결 (선택)</label>
-              <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
-                <option value="">없음</option>
-                {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <p className="mt-1 text-xs text-gray-400">1:1 문의는 시스템 기본 제공으로 별도 생성 불필요</p>
             </div>
             <div className="flex items-center gap-4 col-span-2">
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">

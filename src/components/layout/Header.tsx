@@ -15,6 +15,9 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  linkType?: 'products' | 'board';
+  boardId?: string;
+  board?: { slug: string };
   children?: Category[];
 }
 
@@ -46,8 +49,8 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 items-center justify-between">
-          <Link href="/" className="flex items-center py-3">
+        <div className="flex h-[110px] items-center justify-between">
+          <Link href="/" className="flex items-center py-[18px]">
             <Logo className="h-16 w-auto" />
           </Link>
 
@@ -121,7 +124,11 @@ export function Header() {
               전체 상품
             </Link>
 
-            {categories.map((cat) => (
+            {categories.map((cat) => {
+              const catHref = cat.linkType === 'board' && cat.board?.slug
+                ? `/boards/${cat.board.slug}`
+                : `/products?categoryId=${cat.id}`;
+              return (
               <div
                 key={cat.id}
                 className="relative"
@@ -129,7 +136,7 @@ export function Header() {
                 onMouseLeave={() => setOpenMenu(null)}
               >
                 <Link
-                  href={`/products?categoryId=${cat.id}`}
+                  href={catHref}
                   className="flex items-center gap-0.5 px-3 py-1.5 text-gray-600 hover:text-blue-600 rounded-md hover:bg-gray-50"
                 >
                   {cat.name}
@@ -140,19 +147,25 @@ export function Header() {
 
                 {openMenu === cat.id && (cat.children?.length ?? 0) > 0 && (
                   <div className="absolute left-0 top-full z-50 min-w-[160px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-                    {cat.children!.map((sub) => (
-                      <Link
-                        key={sub.id}
-                        href={`/products?categoryId=${sub.id}`}
-                        className="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600"
-                      >
-                        {sub.name}
-                      </Link>
-                    ))}
+                    {cat.children!.map((sub) => {
+                      const subHref = sub.linkType === 'board' && sub.board?.slug
+                        ? `/boards/${sub.board.slug}`
+                        : `/products?categoryId=${sub.id}`;
+                      return (
+                        <Link
+                          key={sub.id}
+                          href={subHref}
+                          className="block px-4 py-2 text-sm text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                        >
+                          {sub.name}
+                        </Link>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
 
             {user?.hasPointmallAccess && (
               <Link
