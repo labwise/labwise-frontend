@@ -25,6 +25,7 @@ import {
   UserX,
   MessageSquare,
   StarIcon,
+  HelpCircle,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -76,6 +77,7 @@ const navGroups: NavGroup[] = [
   {
     groupLabel: '게시판 · 리뷰',
     items: [
+      { href: '/admin/inquiries', label: '1:1 문의', icon: HelpCircle },
       { href: '/admin/boards', label: '게시판 관리', icon: MessageSquare },
       { href: '/admin/reviews', label: '리뷰 관리', icon: StarIcon },
     ],
