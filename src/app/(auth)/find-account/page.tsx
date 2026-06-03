@@ -4,30 +4,33 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import { Logo } from '@/components/Logo';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Smartphone } from 'lucide-react';
 
 type Tab = 'email' | 'password';
-type PwStep = 'input' | 'otp' | 'done';
+// 비밀번호 재설정 4단계
+// input → confirm (마스킹 전화번호 확인) → otp (인증+새비번) → done
+type PwStep = 'input' | 'confirm' | 'otp' | 'done';
 
 export default function FindAccountPage() {
   const [tab, setTab] = useState<Tab>('email');
 
-  // ── 아이디 찾기 state ──
+  // ── 아이디 찾기 ──────────────────────────────────────────────────────────────
   const [phone, setPhone] = useState('');
   const [foundEmail, setFoundEmail] = useState('');
   const [emailError, setEmailError] = useState('');
   const [emailLoading, setEmailLoading] = useState(false);
 
-  // ── 비밀번호 재설정 state ──
+  // ── 비밀번호 재설정 ───────────────────────────────────────────────────────────
   const [pwStep, setPwStep] = useState<PwStep>('input');
   const [pwEmail, setPwEmail] = useState('');
+  const [maskedPhone, setMaskedPhone] = useState('');
   const [pwOtp, setPwOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [pwError, setPwError] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
 
-  // ── 아이디 찾기 ──
+  // ── 아이디 찾기 핸들러 ────────────────────────────────────────────────────────
   async function handleFindEmail() {
     setEmailError('');
     setFoundEmail('');
@@ -42,7 +45,22 @@ export default function FindAccountPage() {
     }
   }
 
-  // ── 비밀번호 재설정: OTP 발송 ──
+  // Step 1: 이메일로 마스킹된 전화번호 조회
+  async function handleCheckEmail() {
+    setPwError('');
+    setPwLoading(true);
+    try {
+      const { data } = await api.post('/auth/password-reset/check-email', { email: pwEmail });
+      setMaskedPhone(data.maskedPhone);
+      setPwStep('confirm');
+    } catch (e: any) {
+      setPwError(e.response?.data?.message ?? '이메일 확인에 실패했습니다.');
+    } finally {
+      setPwLoading(false);
+    }
+  }
+
+  // Step 2: 실제 OTP 발송
   async function handleSendOtp() {
     setPwError('');
     setPwLoading(true);
@@ -56,7 +74,7 @@ export default function FindAccountPage() {
     }
   }
 
-  // ── 비밀번호 재설정: 확인 ──
+  // Step 3: OTP 확인 + 비밀번호 변경
   async function handleResetPassword() {
     if (newPassword !== newPasswordConfirm) {
       setPwError('비밀번호가 일치하지 않습니다.');
@@ -69,17 +87,23 @@ export default function FindAccountPage() {
     setPwError('');
     setPwLoading(true);
     try {
-      await api.post('/auth/password-reset/confirm', {
-        email: pwEmail,
-        otp: pwOtp,
-        newPassword,
-      });
+      await api.post('/auth/password-reset/confirm', { email: pwEmail, otp: pwOtp, newPassword });
       setPwStep('done');
     } catch (e: any) {
       setPwError(e.response?.data?.message ?? '변경에 실패했습니다.');
     } finally {
       setPwLoading(false);
     }
+  }
+
+  function resetPw() {
+    setPwStep('input');
+    setPwEmail('');
+    setMaskedPhone('');
+    setPwOtp('');
+    setNewPassword('');
+    setNewPasswordConfirm('');
+    setPwError('');
   }
 
   return (
@@ -98,7 +122,7 @@ export default function FindAccountPage() {
             {(['email', 'password'] as Tab[]).map((t) => (
               <button
                 key={t}
-                onClick={() => setTab(t)}
+                onClick={() => { setTab(t); }}
                 className={`flex-1 rounded-md py-2 text-sm font-medium transition-colors ${
                   tab === t ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
@@ -164,15 +188,20 @@ export default function FindAccountPage() {
           {/* ── 비밀번호 재설정 ── */}
           {tab === 'password' && (
             <div className="space-y-4">
+
+              {/* Step 1: 이메일 입력 */}
               {pwStep === 'input' && (
                 <>
-                  <p className="text-sm text-gray-500">가입한 이메일을 입력하면 등록된 휴대폰으로 인증번호를 발송합니다.</p>
+                  <p className="text-sm text-gray-500">
+                    가입한 이메일을 입력하세요. 등록된 휴대폰 번호를 확인한 후 인증번호를 발송합니다.
+                  </p>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
                     <input
                       type="email"
                       value={pwEmail}
                       onChange={(e) => setPwEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && !pwLoading && pwEmail.trim() && handleCheckEmail()}
                       placeholder="example@labwise.kr"
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
@@ -181,29 +210,60 @@ export default function FindAccountPage() {
                     <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{pwError}</p>
                   )}
                   <button
-                    onClick={handleSendOtp}
+                    onClick={handleCheckEmail}
                     disabled={!pwEmail.trim() || pwLoading}
                     className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {pwLoading ? '발송 중...' : '인증번호 발송'}
+                    {pwLoading ? '확인 중...' : '다음'}
                   </button>
                 </>
               )}
 
+              {/* Step 2: 마스킹 전화번호 확인 + 발송 */}
+              {pwStep === 'confirm' && (
+                <>
+                  <div className="rounded-xl bg-blue-50 border border-blue-100 px-5 py-5 text-center space-y-2">
+                    <Smartphone className="mx-auto h-9 w-9 text-blue-500" />
+                    <p className="text-base font-bold text-gray-900 tracking-widest">{maskedPhone}</p>
+                    <p className="text-sm text-gray-500">
+                      위 번호로 인증번호가 발송됩니다.<br />
+                      본인 명의의 번호가 맞다면 발송 버튼을 눌러주세요.
+                    </p>
+                  </div>
+                  {pwError && (
+                    <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{pwError}</p>
+                  )}
+                  <button
+                    onClick={handleSendOtp}
+                    disabled={pwLoading}
+                    className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {pwLoading ? '발송 중...' : '인증번호 발송'}
+                  </button>
+                  <button
+                    onClick={resetPw}
+                    className="w-full text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    이메일 다시 입력
+                  </button>
+                </>
+              )}
+
+              {/* Step 3: OTP + 새 비밀번호 */}
               {pwStep === 'otp' && (
                 <>
-                  <p className="text-sm text-gray-500">
-                    <span className="font-medium text-gray-800">{pwEmail}</span> 계정의 등록된 휴대폰으로 인증번호를 발송했습니다.
-                  </p>
+                  <div className="rounded-lg bg-green-50 border border-green-100 px-4 py-3 text-sm text-green-700">
+                    <span className="font-semibold">{maskedPhone}</span> 번호로 인증번호가 발송되었습니다.
+                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">인증번호</label>
                     <input
                       type="text"
                       value={pwOtp}
                       onChange={(e) => setPwOtp(e.target.value)}
-                      placeholder="6자리 입력"
+                      placeholder="6자리 숫자 입력"
                       maxLength={6}
-                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 tracking-widest text-center text-lg"
                     />
                   </div>
                   <div>
@@ -237,14 +297,15 @@ export default function FindAccountPage() {
                     {pwLoading ? '변경 중...' : '비밀번호 변경'}
                   </button>
                   <button
-                    onClick={() => { setPwStep('input'); setPwError(''); }}
+                    onClick={() => { setPwStep('confirm'); setPwError(''); }}
                     className="w-full text-sm text-gray-500 hover:text-gray-700"
                   >
-                    이메일 다시 입력
+                    인증번호 재발송
                   </button>
                 </>
               )}
 
+              {/* Step 4: 완료 */}
               {pwStep === 'done' && (
                 <div className="text-center space-y-4">
                   <CheckCircle className="mx-auto h-12 w-12 text-green-500" />
@@ -260,6 +321,7 @@ export default function FindAccountPage() {
                   </Link>
                 </div>
               )}
+
             </div>
           )}
 
