@@ -63,7 +63,18 @@ export const useCartStore = create<CartState>((set, get) => ({
     set({ loading: true });
     try {
       const { data } = await api.get('/cart');
-      set({ items: data });
+      const mapped: CartItem[] = (data as any[]).map((item) => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product?.name ?? '',
+        productSlug: item.product?.slug ?? '',
+        unitPrice: Number(item.product?.effectivePrice ?? item.product?.price ?? 0),
+        quantity: item.quantity,
+        imageUrl:
+          item.product?.images?.find((img: any) => img.isPrimary)?.url ??
+          item.product?.images?.[0]?.url,
+      }));
+      set({ items: mapped });
     } finally {
       set({ loading: false });
     }

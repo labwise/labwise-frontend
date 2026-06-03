@@ -9,6 +9,7 @@ const navItems = [
   { href: '/my/orders', label: '주문 내역' },
   { href: '/my/addresses', label: '배송지 관리' },
   { href: '/my/points', label: '와이즈 내역' },
+  { href: '/my/inquiry', label: '1:1 문의' },
 ];
 
 export default function MyLayout({ children }: { children: React.ReactNode }) {

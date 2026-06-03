@@ -76,6 +76,12 @@ export function Header() {
             {user ? (
               <div className="flex items-center gap-2">
                 <Link
+                  href="/my/inquiry"
+                  className="hidden text-sm text-gray-600 hover:text-blue-600 md:block"
+                >
+                  1:1 문의
+                </Link>
+                <Link
                   href="/my"
                   className="hidden items-center gap-1 text-sm text-gray-600 hover:text-blue-600 md:flex"
                 >

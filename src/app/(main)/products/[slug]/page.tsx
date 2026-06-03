@@ -20,6 +20,7 @@ export default function ProductDetailPage() {
   const { addItem } = useCartStore();
   const [qty, setQty] = useState(1);
   const [adding, setAdding] = useState(false);
+  const [buyingNow, setBuyingNow] = useState(false);
 
   const { data: product, isLoading } = useQuery<Product>({
     queryKey: ['product', slug],
@@ -47,12 +48,23 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handleBuyNow = () => {
+  const handleBuyNow = async () => {
     if (!user) {
-      router.push('/register');
+      router.push(`/login?redirect=/products/${product!.slug}`);
       return;
     }
-    router.push('/checkout');
+    setBuyingNow(true);
+    try {
+      await addItem(product!.id, qty, {
+        name: product!.name,
+        slug: product!.slug,
+        price,
+        imageUrl: primaryImage?.url,
+      });
+      router.push('/checkout');
+    } finally {
+      setBuyingNow(false);
+    }
   };
 
   if (isLoading) {
@@ -159,6 +171,7 @@ export default function ProductDetailPage() {
             <Button
               onClick={handleBuyNow}
               disabled={product.stockQuantity === 0 || !product.isOnSale}
+              loading={buyingNow}
               className="flex-1"
             >
               바로 구매
