@@ -1,5 +1,8 @@
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
+import dynamic from 'next/dynamic';
+
+const JackpotFlask = dynamic(() => import('@/components/JackpotFlask'), { ssr: false });
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +10,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
       <Header />
       <main className="flex-1">{children}</main>
       <Footer />
+      <JackpotFlask />
     </div>
   );
 }

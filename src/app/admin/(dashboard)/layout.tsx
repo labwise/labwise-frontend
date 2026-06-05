@@ -26,6 +26,8 @@ import {
   MessageSquare,
   StarIcon,
   HelpCircle,
+  Beaker,
+  FolderCog,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -71,7 +73,17 @@ const navGroups: NavGroup[] = [
     groupLabel: '마케팅',
     items: [
       { href: '/admin/coupons', label: '쿠폰 관리', icon: Tag },
-      { href: '/admin/point-mall', label: '와이즈몰', icon: Gift },
+      {
+        href: '/admin/point-mall',
+        label: '와이즈몰',
+        icon: Gift,
+        children: [
+          { href: '/admin/point-mall', label: '상품 관리', icon: Gift },
+          { href: '/admin/point-mall/orders', label: '주문 관리', icon: ShoppingCart },
+          { href: '/admin/wisemall-categories', label: '카테고리', icon: FolderCog },
+        ],
+      },
+      { href: '/admin/jackpot', label: '연구자 감사 펀드', icon: Beaker },
     ],
   },
   {
