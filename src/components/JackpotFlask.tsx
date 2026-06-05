@@ -10,7 +10,6 @@ interface JackpotData {
   percentage: number;
   recentDraws: {
     drawnAt: string;
-    totalAmount: number;
     winnerCount: number;
     pointsPerWinner: number;
     winners: { maskedName: string }[];
@@ -33,92 +32,199 @@ export default function JackpotFlask() {
   const pct = data.percentage;
   const lastDraw = data.recentDraws?.[0];
 
+  // 플라스크 내부 채움 계산
+  // viewBox: 0 0 80 220
+  // 내부 채움 가능 영역: y=22(목 상단) ~ y=208(바닥)
+  const fillTop = 22;
+  const fillBottom = 208;
+  const fillRange = fillBottom - fillTop;  // 186
+  const liquidY = fillBottom - (pct / 100) * fillRange;
+  const liquidH = (pct / 100) * fillRange;
+
   return (
-    <div className="fixed right-4 top-1/2 z-40 -translate-y-1/2 hidden xl:flex flex-col items-center gap-2 select-none">
-      {/* 타이틀 */}
-      <div className="rounded-lg bg-white/90 border border-blue-100 shadow-sm px-3 py-1.5 text-center backdrop-blur-sm">
-        <p className="text-[10px] font-bold text-blue-700 tracking-wider uppercase">연구자 감사 펀드</p>
-        <p className="text-[10px] text-gray-500 mt-0.5">🧪 매출의 1%가 모입니다</p>
-      </div>
+    <div className="fixed right-4 top-1/2 z-40 -translate-y-1/2 hidden xl:flex flex-col items-center gap-0 select-none"
+      style={{ width: 130 }}>
 
-      {/* 플라스크 SVG */}
-      <div className="relative w-16">
-        <svg viewBox="0 0 64 120" className="w-full drop-shadow-md">
-          {/* 플라스크 외형 */}
-          <defs>
-            <clipPath id="flask-clip">
-              {/* 플라스크 안쪽 채우기 영역 */}
-              <path d="M22 4 L22 52 L4 100 Q4 116 32 116 Q60 116 60 100 L42 52 L42 4 Z" />
-            </clipPath>
-          </defs>
+      {/* 카드 전체 */}
+      <div className="rounded-2xl overflow-hidden shadow-xl border border-blue-100"
+        style={{ background: 'linear-gradient(160deg, #f0f7ff 0%, #e8f0fe 100%)' }}>
 
-          {/* 배경 (빈 플라스크) */}
-          <path
-            d="M22 4 L22 52 L4 100 Q4 116 32 116 Q60 116 60 100 L42 52 L42 4 Z"
-            fill="#EFF6FF"
-            stroke="#93C5FD"
-            strokeWidth="2"
-          />
-
-          {/* 액체 채우기 (아래부터 위로) */}
-          <rect
-            x="0" y={116 - (112 * pct / 100)} width="64" height={112 * pct / 100}
-            fill="url(#liquid-gradient)"
-            clipPath="url(#flask-clip)"
-            className="transition-all duration-1000"
-          />
-
-          {/* 거품 효과 */}
-          {pct > 10 && (
-            <>
-              <circle cx="28" cy={116 - (112 * pct / 100) + 6} r="2.5" fill="rgba(255,255,255,0.5)" className="animate-pulse" />
-              <circle cx="36" cy={116 - (112 * pct / 100) + 12} r="1.5" fill="rgba(255,255,255,0.4)" className="animate-pulse" style={{ animationDelay: '0.5s' }} />
-            </>
-          )}
-
-          {/* 플라스크 외형 선 (위에 그려서 선명하게) */}
-          <path
-            d="M22 4 L22 52 L4 100 Q4 116 32 116 Q60 116 60 100 L42 52 L42 4 Z"
-            fill="none"
-            stroke="#3B82F6"
-            strokeWidth="2"
-          />
-
-          {/* 플라스크 목 */}
-          <rect x="20" y="1" width="24" height="6" rx="2" fill="#DBEAFE" stroke="#3B82F6" strokeWidth="1.5" />
-
-          {/* 그라디언트 정의 */}
-          <defs>
-            <linearGradient id="liquid-gradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#60A5FA" />
-              <stop offset="100%" stopColor="#3B82F6" />
-            </linearGradient>
-          </defs>
-        </svg>
-
-        {/* 퍼센트 텍스트 */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-xs font-bold text-white drop-shadow">{pct}%</span>
+        {/* 헤더 */}
+        <div className="px-4 pt-4 pb-2 text-center">
+          <p className="text-[11px] font-bold text-blue-700 tracking-wide">🧪 연구자 감사 펀드</p>
+          <p className="text-[10px] text-blue-400 mt-0.5">매출의 1%가 모입니다</p>
         </div>
-      </div>
 
-      {/* 금액 표시 */}
-      <div className="rounded-lg bg-white/90 border border-blue-100 shadow-sm px-3 py-2 text-center backdrop-blur-sm w-20">
-        <p className="text-xs font-bold text-blue-600">{formatWise(data.currentAmount)}</p>
-        <div className="my-1 h-px bg-gray-100" />
-        <p className="text-[10px] text-gray-400">목표 {formatWise(data.threshold)}</p>
-      </div>
+        {/* 플라스크 */}
+        <div className="flex justify-center px-2 pb-1">
+          <svg viewBox="0 0 80 220" width="90" height="198" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              {/* 플라스크 안쪽 클립 영역 */}
+              <clipPath id="flask-inner-clip">
+                <path d="
+                  M 32 22
+                  L 32 72
+                  Q 30 80, 19 96
+                  Q 6 115, 6 142
+                  Q 6 206, 40 206
+                  Q 74 206, 74 142
+                  Q 74 115, 61 96
+                  Q 50 80, 48 72
+                  L 48 22
+                  Z
+                " />
+              </clipPath>
 
-      {/* 최근 당첨자 */}
-      {lastDraw && (
-        <div className="rounded-lg bg-white/90 border border-green-100 shadow-sm px-2 py-2 text-center backdrop-blur-sm w-20">
-          <p className="text-[9px] font-semibold text-green-600">🎉 최근 당첨</p>
-          <p className="text-[9px] text-gray-500 mt-0.5">
-            {new Date(lastDraw.drawnAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+              {/* 액체 그라디언트 */}
+              <linearGradient id="liq-grad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.85" />
+                <stop offset="50%" stopColor="#60a5fa" stopOpacity="0.9" />
+                <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.85" />
+              </linearGradient>
+
+              {/* 유리 반사 그라디언트 */}
+              <linearGradient id="glass-shine" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="white" stopOpacity="0.0" />
+                <stop offset="30%" stopColor="white" stopOpacity="0.18" />
+                <stop offset="50%" stopColor="white" stopOpacity="0.0" />
+                <stop offset="100%" stopColor="white" stopOpacity="0.0" />
+              </linearGradient>
+
+              {/* 플라스크 배경 (유리 느낌) */}
+              <linearGradient id="glass-bg" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stopColor="#dbeafe" stopOpacity="0.6" />
+                <stop offset="100%" stopColor="#eff6ff" stopOpacity="0.4" />
+              </linearGradient>
+            </defs>
+
+            {/* ── 마개 (스토퍼) ── */}
+            <rect x="27" y="2" width="26" height="14" rx="5"
+              fill="#cbd5e1" stroke="#94a3b8" strokeWidth="1" />
+            {/* 마개 하이라이트 */}
+            <rect x="30" y="4" width="10" height="4" rx="2" fill="white" opacity="0.5" />
+
+            {/* ── 플라스크 유리 배경 ── */}
+            <path d="
+              M 32 16
+              L 32 72
+              Q 30 80, 19 96
+              Q 6 115, 6 142
+              Q 6 206, 40 206
+              Q 74 206, 74 142
+              Q 74 115, 61 96
+              Q 50 80, 48 72
+              L 48 16
+              Z
+            " fill="url(#glass-bg)" stroke="none" />
+
+            {/* ── 액체 채움 ── */}
+            <rect
+              x="0" y={liquidY} width="80" height={liquidH + 4}
+              fill="url(#liq-grad)"
+              clipPath="url(#flask-inner-clip)"
+              className="transition-all duration-1000"
+            />
+
+            {/* ── 메니스커스 (액체 상단 곡면) ── */}
+            {pct > 2 && (
+              <ellipse
+                cx="40" cy={liquidY}
+                rx={pct > 30 ? 28 : 8}
+                ry="4"
+                fill="#60a5fa"
+                opacity="0.7"
+                clipPath="url(#flask-inner-clip)"
+                className="transition-all duration-1000"
+              />
+            )}
+
+            {/* ── 기포 애니메이션 ── */}
+            {pct > 15 && (
+              <>
+                <circle cx="35" cy={Math.max(liquidY + 15, 100)} r="2"
+                  fill="white" opacity="0.3"
+                  clipPath="url(#flask-inner-clip)">
+                  <animateTransform attributeName="transform" type="translate"
+                    values="0,0;0,-12;0,0" dur="2.4s" repeatCount="indefinite" />
+                </circle>
+                <circle cx="45" cy={Math.max(liquidY + 25, 110)} r="1.5"
+                  fill="white" opacity="0.25"
+                  clipPath="url(#flask-inner-clip)">
+                  <animateTransform attributeName="transform" type="translate"
+                    values="0,0;0,-10;0,0" dur="3.1s" repeatCount="indefinite" />
+                </circle>
+              </>
+            )}
+
+            {/* ── 눈금선 ── */}
+            {[25, 50, 75].map((mark) => {
+              const y = fillBottom - (mark / 100) * fillRange;
+              return (
+                <g key={mark}>
+                  <line x1="48" y1={y} x2="56" y2={y} stroke="#93c5fd" strokeWidth="1" />
+                  <text x="59" y={y + 3} fontSize="6" fill="#93c5fd">{mark}%</text>
+                </g>
+              );
+            })}
+
+            {/* ── 유리 반사 (왼쪽 하이라이트) ── */}
+            <path d="
+              M 34 22
+              L 34 68
+              Q 32 76, 23 90
+              Q 16 104, 14 122
+            " fill="none" stroke="white" strokeWidth="3" strokeOpacity="0.35"
+              strokeLinecap="round" />
+
+            {/* ── 플라스크 외곽선 ── */}
+            <path d="
+              M 32 16
+              L 32 72
+              Q 30 80, 19 96
+              Q 6 115, 6 142
+              Q 6 206, 40 206
+              Q 74 206, 74 142
+              Q 74 115, 61 96
+              Q 50 80, 48 72
+              L 48 16
+            " fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinejoin="round" />
+
+            {/* 목 양쪽 선 */}
+            <line x1="32" y1="16" x2="32" y2="22" stroke="#3b82f6" strokeWidth="2.5" />
+            <line x1="48" y1="16" x2="48" y2="22" stroke="#3b82f6" strokeWidth="2.5" />
+          </svg>
+        </div>
+
+        {/* 수치 */}
+        <div className="px-4 pb-4 text-center">
+          <p className="text-base font-bold text-blue-700 leading-tight">
+            {formatWise(data.currentAmount)}
           </p>
-          <p className="text-[9px] text-gray-600 mt-0.5">{lastDraw.winnerCount}명 당첨</p>
+
+          {/* 프로그래스바 */}
+          <div className="mt-2 h-1.5 rounded-full bg-blue-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all duration-1000"
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <div className="mt-1 flex justify-between text-[9px] text-blue-400">
+            <span>{pct}%</span>
+            <span>목표 {formatWise(data.threshold)}</span>
+          </div>
         </div>
-      )}
+
+        {/* 최근 당첨 */}
+        {lastDraw && (
+          <div className="border-t border-blue-100 px-3 py-2.5 text-center bg-white/50">
+            <p className="text-[9px] font-semibold text-green-600">🎉 최근 추첨</p>
+            <p className="text-[9px] text-gray-500 mt-0.5">
+              {new Date(lastDraw.drawnAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+              &nbsp;·&nbsp;{lastDraw.winnerCount}명 당첨
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
