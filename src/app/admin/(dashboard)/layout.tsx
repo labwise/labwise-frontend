@@ -28,6 +28,7 @@ import {
   HelpCircle,
   Beaker,
   FolderCog,
+  Settings,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -103,6 +104,7 @@ const navGroups: NavGroup[] = [
   {
     groupLabel: '설정',
     items: [
+      { href: '/admin/site-settings', label: '사이트 설정', icon: Settings },
       {
         href: '/admin/integrations',
         label: '연동 관리',

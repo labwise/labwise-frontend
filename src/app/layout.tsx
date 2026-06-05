@@ -9,10 +9,25 @@ const notoSansKR = Noto_Sans_KR({
   variable: '--font-noto-sans-kr',
 });
 
-export const metadata: Metadata = {
-  title: '랩와이즈 - 실험실 소모품 전문 쇼핑몰',
-  description: '대학교 및 연구기관을 위한 실험실 소모품 전문 쇼핑몰',
-};
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api';
+
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const res = await fetch(`${API_URL}/site-settings`, { next: { revalidate: 300 } });
+    if (res.ok) {
+      const cfg = await res.json();
+      return {
+        title: cfg.siteName ? `${cfg.siteName} - 실험실 소모품 전문 쇼핑몰` : '랩와이즈 - 실험실 소모품 전문 쇼핑몰',
+        description: '대학교 및 연구기관을 위한 실험실 소모품 전문 쇼핑몰',
+        icons: cfg.faviconUrl ? { icon: cfg.faviconUrl } : undefined,
+      };
+    }
+  } catch {}
+  return {
+    title: '랩와이즈 - 실험실 소모품 전문 쇼핑몰',
+    description: '대학교 및 연구기관을 위한 실험실 소모품 전문 쇼핑몰',
+  };
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
