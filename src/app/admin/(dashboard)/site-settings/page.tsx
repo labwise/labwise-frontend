@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import adminApi from '@/lib/admin-api';
 import {
@@ -96,14 +96,17 @@ export default function SiteSettingsPage() {
   const [heroUploading, setHeroUploading] = useState(false);
   const heroInputRef = useRef<HTMLInputElement>(null);
 
-  useQuery<SiteConfig>({
+  const { data: loaded } = useQuery<SiteConfig>({
     queryKey: ['site-settings-admin'],
     queryFn: async () => {
       const { data } = await adminApi.get('/admin/site-settings');
       return data;
     },
-    onSuccess: (data) => setCfg({ ...DEFAULTS, ...data }),
-  } as any);
+  });
+
+  useEffect(() => {
+    if (loaded) setCfg({ ...DEFAULTS, ...loaded });
+  }, [loaded]);
 
   const save = useMutation({
     mutationFn: () => adminApi.put('/admin/site-settings', cfg),
