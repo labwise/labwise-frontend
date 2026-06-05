@@ -1,8 +1,6 @@
 import { Header } from '@/components/layout/Header';
 import { Footer } from '@/components/layout/Footer';
-import dynamic from 'next/dynamic';
-
-const JackpotFlask = dynamic(() => import('@/components/JackpotFlask'), { ssr: false });
+import JackpotFlask from '@/components/JackpotFlask';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
   return (
