@@ -120,7 +120,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const { admin, token, logout, _hydrated } = useAdminAuthStore();
-  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['/admin/integrations', '/admin/users']));
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['/admin/integrations', '/admin/users', '/admin/point-mall']));
 
   useEffect(() => {
     if (_hydrated && !token) router.push('/admin/login');
