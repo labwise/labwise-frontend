@@ -47,7 +47,7 @@ export default function JackpotAdminPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-gray-900">연구자 감사 펀드</h1>
-          <p className="mt-1 text-sm text-gray-500">매출의 1%가 자동 적립되며, {formatWise(pool?.threshold ?? 100000)} 달성 시 추첨을 진행합니다.</p>
+          <p className="mt-1 text-sm text-gray-500">매출의 1.5%가 자동 적립되며, {formatWise(pool?.threshold ?? 100000)} 달성 시 추첨을 진행합니다.</p>
         </div>
       </div>
 

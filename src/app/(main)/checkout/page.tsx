@@ -333,6 +333,10 @@ export default function CheckoutPage() {
                     <span>총 결제 금액</span>
                     <span className="text-blue-600">{formatPrice(finalAmount)}</span>
                   </div>
+                  <div className="mt-2 flex items-center justify-between rounded-lg bg-green-50 px-3 py-2 text-xs text-green-700">
+                    <span>이 구매로 기부 적립</span>
+                    <span className="font-semibold">{formatPrice(Math.floor(finalAmount * 0.015))}</span>
+                  </div>
                 </div>
               </div>
 

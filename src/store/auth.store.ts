@@ -6,6 +6,7 @@ interface AuthUser {
   email: string;
   name: string;
   pointBalance: number;
+  donationTotal: number;
   groupId: string;
   isVerified: boolean;
   hasPointmallAccess: boolean;

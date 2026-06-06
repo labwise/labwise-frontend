@@ -95,12 +95,18 @@ function SuccessContent() {
   }
 
   if (status === 'bank_transfer') {
+    const donationAmt = Math.floor(amount * 0.015);
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4">
         <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
           <Clock className="mx-auto mb-4 h-16 w-16 text-amber-500" />
           <h1 className="mb-2 text-xl font-bold text-gray-900">주문이 접수되었습니다</h1>
           <p className="mb-6 text-sm text-gray-500">아래 계좌로 입금 후 관리자가 확인하면 처리됩니다.</p>
+          {donationAmt > 0 && (
+            <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+              🌱 이 구매로 <span className="font-semibold">{formatPrice(donationAmt)}</span>이 기부 적립됩니다
+            </div>
+          )}
 
           {bankInfo && (
             <div className="mb-6 rounded-xl bg-amber-50 p-5 text-left">
@@ -155,12 +161,18 @@ function SuccessContent() {
     const expiry = virtualAccount.virtualAccountExpiredAt
       ? new Date(virtualAccount.virtualAccountExpiredAt).toLocaleString('ko-KR')
       : '24시간 이내';
+    const donationAmt = Math.floor(amount * 0.015);
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4">
         <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
           <Clock className="mx-auto mb-4 h-16 w-16 text-blue-500" />
           <h1 className="mb-2 text-xl font-bold text-gray-900">가상계좌가 발급되었습니다</h1>
           <p className="mb-6 text-sm text-gray-500">아래 계좌로 입금하시면 자동으로 처리됩니다.</p>
+          {donationAmt > 0 && (
+            <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+              🌱 이 구매로 <span className="font-semibold">{formatPrice(donationAmt)}</span>이 기부 적립됩니다
+            </div>
+          )}
 
           <div className="mb-6 rounded-xl bg-blue-50 p-5 text-left">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-blue-800">
@@ -210,12 +222,19 @@ function SuccessContent() {
   }
 
   // 일반 카드 결제 완료
+  const cardAmount = Number(searchParams.get('amount') ?? 0);
+  const donationAmt = Math.floor(cardAmount * 0.015);
   return (
     <div className="flex min-h-[50vh] items-center justify-center">
       <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
         <CheckCircle className="mx-auto mb-4 h-16 w-16 text-green-500" />
         <h1 className="mb-2 text-2xl font-bold text-gray-900">결제가 완료되었습니다!</h1>
         <p className="mb-6 text-gray-500">주문이 정상적으로 접수되었습니다.</p>
+        {donationAmt > 0 && (
+          <div className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+            🌱 이 구매로 <span className="font-semibold">{formatPrice(donationAmt)}</span>이 기부 적립됩니다
+          </div>
+        )}
         <div className="flex justify-center gap-3">
           <Button variant="outline" onClick={() => router.push('/products')}>
             쇼핑 계속하기

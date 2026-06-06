@@ -56,7 +56,7 @@ export default function JackpotFlask() {
           <p className="text-[13px] font-bold text-blue-700 tracking-wide whitespace-nowrap">
             연구자 감사 펀드
           </p>
-          <p className="text-[11px] text-blue-400 mt-0.5">매출의 1% 적립</p>
+          <p className="text-[11px] text-blue-400 mt-0.5">매출의 1.5% 적립</p>
         </div>
 
         {/* 플라스크 SVG */}

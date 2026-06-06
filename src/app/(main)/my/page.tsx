@@ -1,8 +1,8 @@
 'use client';
 
 import { useAuthStore } from '@/store/auth.store';
-import { formatWise } from '@/lib/utils';
-import { User, Mail, Phone, Star } from 'lucide-react';
+import { formatWise, formatPrice } from '@/lib/utils';
+import { User, Mail, Star, Heart } from 'lucide-react';
 
 export default function MyPage() {
   const { user } = useAuthStore();
@@ -36,6 +36,17 @@ export default function MyPage() {
           <p className="text-2xl font-bold text-blue-600">{formatWise(user.pointBalance)}</p>
         </div>
         <p className="mt-2 text-sm text-blue-500">와이즈는 주문 시 할인에 사용할 수 있습니다</p>
+      </div>
+
+      <div className="rounded-xl border border-green-100 bg-green-50 p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Heart className="h-5 w-5 text-green-600" />
+            <h2 className="font-semibold text-green-900">내 기부 기여금</h2>
+          </div>
+          <p className="text-2xl font-bold text-green-600">{formatPrice(user.donationTotal ?? 0)}</p>
+        </div>
+        <p className="mt-2 text-sm text-green-500">구매 금액의 1.5%가 어린이·봉사단체에 기부됩니다</p>
       </div>
     </div>
   );
