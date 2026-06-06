@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 interface SiteConfig {
   companyName?: string; ceoName?: string; businessNumber?: string;
   address?: string; phone?: string; email?: string; footerCopyright?: string;
+  logoUrl?: string;
 }
 
 export function Footer() {
@@ -21,7 +22,8 @@ export function Footer() {
   const bizNum = cfg?.businessNumber || '';
   const address = cfg?.address || '';
   const phone = cfg?.phone || '02-1234-5678';
-  const email = cfg?.email || 'support@labwise.kr';
+  const email = cfg?.email || 'info@labwise.co.kr';
+  const logoUrl = cfg?.logoUrl;
   const copyright = cfg?.footerCopyright || `© ${new Date().getFullYear()} ${company}. All rights reserved.`;
 
   return (
@@ -59,6 +61,12 @@ export function Footer() {
         </div>
 
         <div className="mt-8 border-t border-gray-200 pt-6 text-xs text-gray-400 space-y-1">
+          {logoUrl && (
+            <div className="mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt={company} className="h-10 w-auto object-contain" />
+            </div>
+          )}
           <p>{copyright}</p>
           <p>
             {[

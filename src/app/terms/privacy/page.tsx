@@ -203,7 +203,7 @@ export default function PrivacyPolicyPage() {
             <ul className="space-y-1">
               <li>성명: 랩와이즈 개인정보 보호팀</li>
               <li>전화번호: 고객센터를 통해 문의</li>
-              <li>이메일: privacy@labwise.co.kr</li>
+              <li>이메일: info@labwise.co.kr</li>
             </ul>
           </div>
           <p className="mt-3">
@@ -220,7 +220,7 @@ export default function PrivacyPolicyPage() {
 
         <div className="border-t border-gray-200 pt-6 mt-8">
           <p className="text-sm text-gray-500">부칙: 이 방침은 2026년 1월 1일부터 시행합니다.</p>
-          <p className="text-sm text-gray-500 mt-1">문의: privacy@labwise.co.kr</p>
+          <p className="text-sm text-gray-500 mt-1">문의: info@labwise.co.kr</p>
         </div>
       </div>
     </div>

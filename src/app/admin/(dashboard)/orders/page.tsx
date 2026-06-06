@@ -2,10 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import adminApi from '@/lib/admin-api';
-import { Search, Truck, ChevronRight, X } from 'lucide-react';
+import { Search, Truck, X, Calendar, ChevronDown } from 'lucide-react';
 import { formatPrice } from '@/lib/utils';
-
-// ── 타입 ──────────────────────────────────────────────────────────────────────
 
 type OrderStatus = 'PENDING' | 'PAID' | 'PREPARING' | 'SHIPPED' | 'DELIVERED' | 'CONFIRMED' | 'CANCELLED' | 'REFUNDED';
 
@@ -33,8 +31,6 @@ interface Order {
   user: { id: string; name: string; email: string };
   items: OrderItem[];
 }
-
-// ── 상수 ──────────────────────────────────────────────────────────────────────
 
 const TABS: { value: OrderStatus | ''; label: string; color: string }[] = [
   { value: '', label: '전체', color: 'text-gray-600' },
@@ -85,7 +81,15 @@ const PAYMENT_LABEL: Record<string, string> = {
   POSTPAY: '후불결제',
 };
 
-// ── 컴포넌트 ─────────────────────────────────────────────────────────────────
+const BULK_STATUS_OPTIONS: { value: OrderStatus; label: string }[] = [
+  { value: 'PENDING', label: '입금전' },
+  { value: 'PAID', label: '입금확인' },
+  { value: 'PREPARING', label: '배송준비중' },
+  { value: 'SHIPPED', label: '배송중' },
+  { value: 'DELIVERED', label: '배송완료' },
+  { value: 'CONFIRMED', label: '구매확정' },
+  { value: 'CANCELLED', label: '취소' },
+];
 
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -97,6 +101,15 @@ export default function AdminOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState<Record<string, number>>({});
 
+  // 날짜 필터
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // 체크박스 선택
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkStatus, setBulkStatus] = useState<OrderStatus>('PAID');
+  const [bulkLoading, setBulkLoading] = useState(false);
+
   // 운송장 모달
   const [trackingOrder, setTrackingOrder] = useState<Order | null>(null);
   const [trackingCompany, setTrackingCompany] = useState('');
@@ -107,10 +120,8 @@ export default function AdminOrdersPage() {
 
   const load = useCallback(() => {
     setLoading(true);
+    setSelectedIds(new Set());
     const statusParam = activeTab === 'CANCELLED' ? undefined : (activeTab || undefined);
-    const statusFilter = activeTab === 'CANCELLED'
-      ? undefined
-      : (activeTab || undefined);
 
     adminApi
       .get('/admin/orders', {
@@ -119,6 +130,8 @@ export default function AdminOrdersPage() {
           limit,
           status: statusParam,
           search: appliedSearch || undefined,
+          dateFrom: dateFrom || undefined,
+          dateTo: dateTo || undefined,
         },
       })
       .then(({ data }) => {
@@ -130,11 +143,9 @@ export default function AdminOrdersPage() {
         setTotal(data.total ?? data.length);
       })
       .finally(() => setLoading(false));
-  }, [page, activeTab, appliedSearch]);
+  }, [page, activeTab, appliedSearch, dateFrom, dateTo]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   useEffect(() => {
     adminApi.get('/admin/dashboard').then(({ data }) => {
@@ -145,6 +156,17 @@ export default function AdminOrdersPage() {
   function handleTabChange(tab: OrderStatus | '') {
     setActiveTab(tab);
     setPage(1);
+    setSelectedIds(new Set());
+  }
+
+  function applySearch() {
+    setAppliedSearch(search);
+    setPage(1);
+  }
+
+  function applyDateFilter() {
+    setPage(1);
+    load();
   }
 
   async function handleStatusChange(order: Order, nextStatus: OrderStatus) {
@@ -191,7 +213,43 @@ export default function AdminOrdersPage() {
     }
   }
 
+  // 체크박스 토글
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    if (selectedIds.size === orders.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(orders.map((o) => o.id)));
+    }
+  }
+
+  async function handleBulkStatus() {
+    if (selectedIds.size === 0) return alert('주문을 선택해주세요.');
+    if (!confirm(`선택한 ${selectedIds.size}건의 상태를 "${BULK_STATUS_OPTIONS.find(o => o.value === bulkStatus)?.label}"으로 변경하시겠습니까?`)) return;
+    setBulkLoading(true);
+    try {
+      await adminApi.post('/admin/orders/bulk-status', {
+        orderIds: Array.from(selectedIds),
+        status: bulkStatus,
+      });
+      load();
+    } catch (e: any) {
+      alert(e.response?.data?.message ?? '일괄 변경 중 오류가 발생했습니다.');
+    } finally {
+      setBulkLoading(false);
+    }
+  }
+
   const totalPages = Math.ceil(total / limit);
+  const allChecked = orders.length > 0 && selectedIds.size === orders.length;
 
   return (
     <div className="space-y-4">
@@ -232,27 +290,103 @@ export default function AdminOrdersPage() {
         })}
       </div>
 
-      {/* 검색 */}
-      <div className="flex gap-2">
-        <div className="relative flex-1 max-w-xs">
+      {/* 검색 + 날짜 필터 */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') { setAppliedSearch(search); setPage(1); }
-            }}
+            onKeyDown={(e) => { if (e.key === 'Enter') applySearch(); }}
             placeholder="주문번호, 회원명 검색"
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
           />
         </div>
+        <button
+          onClick={applySearch}
+          className="px-4 py-2 bg-gray-100 rounded-lg text-sm hover:bg-gray-200"
+        >
+          검색
+        </button>
+        <div className="flex items-center gap-1.5 ml-2">
+          <Calendar size={14} className="text-gray-400" />
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="py-2 px-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <span className="text-gray-400 text-sm">~</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="py-2 px-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <button
+            onClick={applyDateFilter}
+            className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
+          >
+            적용
+          </button>
+          {(dateFrom || dateTo) && (
+            <button
+              onClick={() => { setDateFrom(''); setDateTo(''); setPage(1); }}
+              className="px-2 py-2 text-gray-400 hover:text-gray-600 text-sm"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
+
+      {/* 일괄 처리 영역 */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-2.5">
+          <span className="text-sm font-medium text-blue-700">{selectedIds.size}건 선택됨</span>
+          <div className="flex items-center gap-2 ml-auto">
+            <div className="relative">
+              <select
+                value={bulkStatus}
+                onChange={(e) => setBulkStatus(e.target.value as OrderStatus)}
+                className="appearance-none py-1.5 pl-3 pr-8 border border-blue-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {BULK_STATUS_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            </div>
+            <button
+              onClick={handleBulkStatus}
+              disabled={bulkLoading}
+              className="px-4 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+            >
+              {bulkLoading ? '처리 중...' : '일괄 변경'}
+            </button>
+            <button
+              onClick={() => setSelectedIds(new Set())}
+              className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm"
+            >
+              선택 해제
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 주문 테이블 */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-gray-100 bg-gray-50 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <th className="px-4 py-3 w-10">
+                <input
+                  type="checkbox"
+                  checked={allChecked}
+                  onChange={toggleSelectAll}
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+              </th>
               <th className="px-4 py-3 text-left">주문번호</th>
               <th className="px-4 py-3 text-left">회원</th>
               <th className="px-4 py-3 text-right">금액</th>
@@ -265,21 +399,26 @@ export default function AdminOrdersPage() {
           <tbody className="divide-y divide-gray-50">
             {loading ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-sm text-gray-400">
-                  불러오는 중...
-                </td>
+                <td colSpan={8} className="py-12 text-center text-sm text-gray-400">불러오는 중...</td>
               </tr>
             ) : orders.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-sm text-gray-400">
-                  주문이 없습니다.
-                </td>
+                <td colSpan={8} className="py-12 text-center text-sm text-gray-400">주문이 없습니다.</td>
               </tr>
             ) : (
               orders.map((o) => {
                 const next = NEXT_STATUS[o.status];
+                const isSelected = selectedIds.has(o.id);
                 return (
-                  <tr key={o.id} className="hover:bg-gray-50">
+                  <tr key={o.id} className={`hover:bg-gray-50 ${isSelected ? 'bg-blue-50' : ''}`}>
+                    <td className="px-4 py-3 text-center">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(o.id)}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <p className="font-mono text-xs text-gray-700">{o.orderNumber}</p>
                       {o.trackingNumber && (

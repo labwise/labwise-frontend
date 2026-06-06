@@ -151,7 +151,7 @@ export default function TermsOfServicePage() {
 
         <div className="border-t border-gray-200 pt-6 mt-8">
           <p className="text-sm text-gray-500">부칙: 이 약관은 2026년 1월 1일부터 시행합니다.</p>
-          <p className="text-sm text-gray-500 mt-1">문의: contact@labwise.co.kr</p>
+          <p className="text-sm text-gray-500 mt-1">문의: info@labwise.co.kr</p>
         </div>
       </div>
     </div>

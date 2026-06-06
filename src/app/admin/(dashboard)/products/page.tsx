@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import adminApi from '@/lib/admin-api';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, ChevronDown } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -14,6 +14,11 @@ interface Product {
   category?: { name: string };
 }
 
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [total, setTotal] = useState(0);
@@ -21,19 +26,32 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryId, setCategoryId] = useState('');
 
   const limit = 20;
 
   useEffect(() => {
+    adminApi.get('/admin/categories/flat').then(({ data }) => setCategories(data));
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
     adminApi
-      .get('/admin/products', { params: { page, limit, search: query || undefined } })
+      .get('/admin/products', {
+        params: {
+          page,
+          limit,
+          search: query || undefined,
+          categoryId: categoryId || undefined,
+        },
+      })
       .then(({ data }) => {
         setProducts(data.items ?? data);
         setTotal(data.total ?? data.length);
       })
       .finally(() => setLoading(false));
-  }, [page, query]);
+  }, [page, query, categoryId]);
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`"${name}" 상품을 삭제하시겠습니까?`)) return;
@@ -56,16 +74,16 @@ export default function AdminProductsPage() {
         </Link>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-2 mb-4">
-        <div className="relative flex-1 max-w-sm">
+      {/* 검색 + 카테고리 필터 */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <div className="relative">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && (setQuery(search), setPage(1))}
+            onKeyDown={(e) => { if (e.key === 'Enter') { setQuery(search); setPage(1); } }}
             placeholder="상품명, SKU 검색"
-            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-52"
           />
         </div>
         <button
@@ -74,6 +92,19 @@ export default function AdminProductsPage() {
         >
           검색
         </button>
+        <div className="relative">
+          <select
+            value={categoryId}
+            onChange={(e) => { setCategoryId(e.target.value); setPage(1); }}
+            className="appearance-none py-2 pl-3 pr-8 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">전체 카테고리</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <ChevronDown size={13} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+        </div>
       </div>
 
       {/* Table */}
@@ -93,22 +124,16 @@ export default function AdminProductsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-gray-400">
-                  불러오는 중...
-                </td>
+                <td colSpan={7} className="text-center py-10 text-gray-400">불러오는 중...</td>
               </tr>
             ) : products.length === 0 ? (
               <tr>
-                <td colSpan={7} className="text-center py-10 text-gray-400">
-                  상품이 없습니다
-                </td>
+                <td colSpan={7} className="text-center py-10 text-gray-400">상품이 없습니다</td>
               </tr>
             ) : (
               products.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
-                  <td className="px-4 py-3 font-medium text-gray-900 max-w-xs truncate">
-                    {p.name}
-                  </td>
+                  <td className="px-4 py-3 font-medium text-gray-900 max-w-xs truncate">{p.name}</td>
                   <td className="px-4 py-3 text-gray-500">{p.sku || '-'}</td>
                   <td className="px-4 py-3 text-gray-500">{p.category?.name || '-'}</td>
                   <td className="px-4 py-3 text-right">{p.price.toLocaleString()}원</td>
@@ -118,13 +143,9 @@ export default function AdminProductsPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
-                        p.isActive
-                          ? 'bg-green-100 text-green-700'
-                          : 'bg-gray-100 text-gray-500'
-                      }`}
-                    >
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                      p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'
+                    }`}>
                       {p.isActive ? '판매중' : '비활성'}
                     </span>
                   </td>
