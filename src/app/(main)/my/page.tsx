@@ -1,11 +1,26 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useAuthStore } from '@/store/auth.store';
+import { api } from '@/lib/api';
 import { formatWise, formatPrice } from '@/lib/utils';
 import { User, Mail, Star, Heart } from 'lucide-react';
 
 export default function MyPage() {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
+
+  // 마이페이지 진입 시 항상 최신 사용자 정보 갱신
+  useEffect(() => {
+    api.get('/auth/me').then(({ data }) => {
+      updateUser({
+        pointBalance: data.pointBalance ?? 0,
+        donationTotal: data.donationTotal ?? 0,
+        hasPointmallAccess: data.pointmallAccess ?? data.hasPointmallAccess,
+        name: data.name,
+        email: data.email,
+      });
+    }).catch(() => {});
+  }, []);
 
   if (!user) return null;
 
