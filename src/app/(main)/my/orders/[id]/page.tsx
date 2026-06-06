@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, Receipt } from 'lucide-react';
+import { ChevronLeft, Receipt, FileText } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Order } from '@/types';
 import { formatPrice, formatWise, formatDateTime } from '@/lib/utils';
@@ -204,17 +204,28 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
-        {paymentInfo?.receiptUrl && (
-          <div className="mt-4 border-t border-gray-100 pt-4">
-            <a
-              href={paymentInfo.receiptUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-            >
-              <Receipt className="h-4 w-4" />
-              카드 영수증 보기
-            </a>
+        {(paymentInfo?.receiptUrl || (order.status !== 'PENDING' && order.status !== 'CANCELLED')) && (
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-gray-100 pt-4">
+            {paymentInfo?.receiptUrl && (
+              <a
+                href={paymentInfo.receiptUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Receipt className="h-4 w-4" />
+                카드 영수증 보기
+              </a>
+            )}
+            {order.status !== 'PENDING' && order.status !== 'CANCELLED' && (
+              <button
+                onClick={() => window.open(`/print/statement/${order.id}`, '_blank')}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <FileText className="h-4 w-4" />
+                거래명세서 출력
+              </button>
+            )}
           </div>
         )}
       </div>

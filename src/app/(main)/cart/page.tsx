@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Trash2, ShoppingBag, ArrowRight } from 'lucide-react';
+import { Trash2, ShoppingBag, ArrowRight, FileText } from 'lucide-react';
 import { useCartStore } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import { formatPrice } from '@/lib/utils';
@@ -122,6 +122,14 @@ export default function CartPage() {
               <Button className="mt-4 w-full" onClick={handleCheckout}>
                 {user ? '주문하기' : '로그인 후 주문하기'} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
+
+              <button
+                onClick={() => window.open('/print/estimate', '_blank')}
+                className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                <FileText className="h-4 w-4" />
+                견적서 발행
+              </button>
 
               {!user && (
                 <div className="mt-3 rounded-lg bg-blue-50 p-3 text-center text-xs text-blue-700">
