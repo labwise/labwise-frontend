@@ -29,6 +29,7 @@ import {
   Beaker,
   FolderCog,
   Settings,
+  FileText,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -50,6 +51,7 @@ const navGroups: NavGroup[] = [
       { href: '/admin/products', label: '상품 관리', icon: Package },
       { href: '/admin/categories', label: '카테고리', icon: FolderTree },
       { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
+      { href: '/admin/estimates', label: '견적서 내역', icon: FileText },
       { href: '/admin/featured', label: '추천 상품', icon: Star },
     ],
   },

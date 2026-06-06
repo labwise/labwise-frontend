@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 const navItems = [
   { href: '/my', label: '내 정보' },
   { href: '/my/orders', label: '주문 내역' },
+  { href: '/my/estimates', label: '견적서 내역' },
   { href: '/my/addresses', label: '배송지 관리' },
   { href: '/my/points', label: '와이즈 내역' },
   { href: '/my/inquiry', label: '1:1 문의' },
