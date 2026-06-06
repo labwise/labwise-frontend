@@ -42,15 +42,38 @@ function SuccessContent() {
       return;
     }
 
+    // 주문 데이터를 sessionStorage에서 읽어옴 (checkout에서 저장한 것)
+    const storedKey = `labwise_toss_order_${orderId}`;
+    const storedRaw = sessionStorage.getItem(storedKey);
+    if (!storedRaw) {
+      setStatus('error');
+      setMessage('주문 정보를 찾을 수 없습니다. 다시 시도해주세요.');
+      return;
+    }
+
+    let orderData: Record<string, unknown>;
+    try { orderData = JSON.parse(storedRaw); } catch {
+      setStatus('error');
+      setMessage('주문 정보 파싱 오류');
+      return;
+    }
+
     api
-      .post('/payments/confirm', { paymentKey, orderId, amount: Number(amountStr) })
+      .post('/payments/confirm-and-create', {
+        paymentKey,
+        tossOrderId: orderId,
+        amount: Number(amountStr),
+        ...orderData,
+      })
       .then(({ data }) => {
+        sessionStorage.removeItem(storedKey);
         clearCart();
-        if (data.status === 'PENDING' && data.virtualAccountNumber) {
+        const payment = data.payment ?? data;
+        if (payment.virtualAccountNumber) {
           setVirtualAccount({
-            virtualAccountNumber: data.virtualAccountNumber,
-            virtualAccountBank: data.virtualAccountBank,
-            virtualAccountExpiredAt: data.virtualAccountExpiredAt,
+            virtualAccountNumber: payment.virtualAccountNumber,
+            virtualAccountBank: payment.virtualAccountBank,
+            virtualAccountExpiredAt: payment.virtualAccountExpiredAt,
           });
           setAmount(Number(amountStr));
           setStatus('virtual_account');
@@ -62,7 +85,7 @@ function SuccessContent() {
         setStatus('error');
         setMessage(err.response?.data?.message ?? '결제 확인 중 오류가 발생했습니다.');
       });
-  }, []);
+  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
 
   function copyText(text: string) {
     navigator.clipboard.writeText(text);

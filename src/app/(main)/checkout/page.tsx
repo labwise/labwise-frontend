@@ -201,29 +201,29 @@ function CheckoutInner() {
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
     setError('');
-    let createdOrderId: string | null = null;
-    try {
-      const { data: order } = await api.post('/orders', {
-        items: displayItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
-        shippingAddress: {
-          recipientName: data.recipientName, phone: data.phone,
-          zipCode: data.zipCode, address: data.address, addressDetail: data.addressDetail,
-        },
-        pointAmount: appliedPoints,
-        paymentMethod: data.paymentMethod,
-        taxInvoiceRequested: data.taxInvoiceRequested ?? false,
-        memo: data.memo,
-      });
-      createdOrderId = order.id;
 
-      // 무통장 입금: 바로 대기 페이지
+    const orderPayload = {
+      items: displayItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+      shippingAddress: {
+        recipientName: data.recipientName, phone: data.phone,
+        zipCode: data.zipCode, address: data.address, addressDetail: data.addressDetail ?? '',
+      },
+      pointAmount: appliedPoints,
+      paymentMethod: data.paymentMethod,
+      taxInvoiceRequested: data.taxInvoiceRequested ?? false,
+      memo: data.memo,
+    };
+
+    try {
+      // ── 무통장 입금: 주문 먼저 생성 ─────────────────────────────────────
       if (data.paymentMethod === 'BANK_TRANSFER') {
+        const { data: order } = await api.post('/orders', orderPayload);
         isBuyNow ? sessionStorage.removeItem('labwise_buy_now') : await clearCart();
         router.push(`/checkout/success?orderId=${order.id}&method=BANK_TRANSFER&amount=${finalAmount}`);
         return;
       }
 
-      // 카드 / 가상계좌: 토스페이먼츠 SDK
+      // ── 카드 / 가상계좌: Toss 먼저 → 성공 시 주문 생성 ─────────────────
       const { loadTossPayments, ANONYMOUS } = await import('@tosspayments/tosspayments-sdk');
       const { data: payConfig } = await api.get('/payments/config');
       const clientKey: string = payConfig.clientKey;
@@ -231,6 +231,14 @@ function CheckoutInner() {
         setError('결제 설정 오류: 관리자 페이지에서 토스페이먼츠 클라이언트 키를 설정해주세요.');
         return;
       }
+
+      // 임시 tossOrderId 생성 (DB 주문 없이 Toss 호출)
+      const tossOrderId = crypto.randomUUID();
+      // 결제 성공 후 success 페이지에서 주문 생성에 필요한 데이터 저장
+      sessionStorage.setItem(
+        `labwise_toss_order_${tossOrderId}`,
+        JSON.stringify({ ...orderPayload, amount: finalAmount }),
+      );
 
       const tossPayments = await loadTossPayments(clientKey);
       const payment = tossPayments.payment({ customerKey: user?.id ?? ANONYMOUS });
@@ -242,7 +250,7 @@ function CheckoutInner() {
       await payment.requestPayment({
         method: data.paymentMethod as any,
         amount: { currency: 'KRW', value: finalAmount },
-        orderId: order.id,
+        orderId: tossOrderId,
         orderName,
         successUrl: `${window.location.origin}/checkout/success`,
         failUrl: `${window.location.origin}/checkout/fail`,
@@ -250,14 +258,11 @@ function CheckoutInner() {
         customerName: user?.name,
       });
 
-      // 결제 완료 후 카트/buyNow 정리
-      isBuyNow ? sessionStorage.removeItem('labwise_buy_now') : await clearCart();
+      // 여기까지 오면 결제 성공 (Toss가 successUrl로 redirect함)
+      // 카트/buyNow 정리는 success 페이지에서 처리
     } catch (err: any) {
       if (err?.code === 'USER_CANCEL') {
-        // 카드 결제 취소 → 생성된 주문 자동 취소
-        if (createdOrderId) {
-          try { await api.delete(`/orders/${createdOrderId}`); } catch {}
-        }
+        // 취소 시 주문이 생성되지 않았으므로 DB 정리 불필요
         setError('결제를 취소하셨습니다.');
         return;
       }
