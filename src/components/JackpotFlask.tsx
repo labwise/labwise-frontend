@@ -2,12 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { formatWise } from '@/lib/utils';
+import { formatWise, formatPrice } from '@/lib/utils';
 
 interface JackpotData {
   currentAmount: number;
   threshold: number;
   percentage: number;
+  totalDonation: number;
   recentDraws: {
     drawnAt: string;
     winnerCount: number;
@@ -45,26 +46,26 @@ export default function JackpotFlask() {
   return (
     <div
       className="fixed right-4 top-1/2 z-40 -translate-y-1/2 hidden xl:flex flex-col items-center select-none"
-      style={{ width: 160 }}
+      style={{ width: 136 }}
     >
       <div
         className="w-full rounded-2xl shadow-xl border border-blue-200 overflow-hidden"
         style={{ background: 'linear-gradient(165deg, #eff6ff 0%, #dbeafe 100%)' }}
       >
         {/* 헤더 — 한 줄 */}
-        <div className="px-4 pt-4 pb-1 text-center">
-          <p className="text-[13px] font-bold text-blue-700 tracking-wide whitespace-nowrap">
+        <div className="px-3 pt-3 pb-1 text-center">
+          <p className="text-[12px] font-bold text-blue-700 tracking-wide whitespace-nowrap">
             연구자 감사 펀드
           </p>
-          <p className="text-[11px] text-blue-400 mt-0.5">매출의 1.5% 적립</p>
+          <p className="text-[10px] text-blue-400 mt-0.5">매출의 1.5% 적립</p>
         </div>
 
         {/* 플라스크 SVG */}
-        <div className="flex justify-center py-2">
+        <div className="flex justify-center py-1">
           <svg
             viewBox="0 0 100 290"
-            width="110"
-            height="319"
+            width="88"
+            height="255"
             xmlns="http://www.w3.org/2000/svg"
           >
             <defs>
@@ -222,29 +223,37 @@ export default function JackpotFlask() {
         </div>
 
         {/* 수치 */}
-        <div className="px-5 pb-4 text-center">
-          <p className="text-[17px] font-bold text-blue-700 leading-tight">
+        <div className="px-3 pb-3 text-center">
+          <p className="text-[15px] font-bold text-blue-700 leading-tight">
             {formatWise(data.currentAmount)}
           </p>
 
           {/* 프로그래스바 */}
-          <div className="mt-2 h-2 rounded-full bg-blue-100 overflow-hidden">
+          <div className="mt-1.5 h-1.5 rounded-full bg-blue-100 overflow-hidden">
             <div
               className="h-full rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000"
               style={{ width: `${pct}%` }}
             />
           </div>
-          <div className="mt-1.5 flex justify-between text-[10px] text-blue-400">
+          <div className="mt-1 flex justify-between text-[9px] text-blue-400">
             <span className="font-medium">{pct}%</span>
             <span>목표 {formatWise(data.threshold)}</span>
           </div>
         </div>
 
+        {/* 누적 기부금 */}
+        <div className="border-t border-green-100 bg-green-50/60 px-3 py-2 text-center">
+          <p className="text-[9px] text-green-600 font-medium">🌱 누적 기부 적립금</p>
+          <p className="text-[13px] font-bold text-green-700 mt-0.5">
+            {formatPrice(data.totalDonation ?? 0)}
+          </p>
+        </div>
+
         {/* 최근 당첨 */}
         {lastDraw && (
-          <div className="border-t border-blue-100 bg-white/50 px-4 py-2.5 text-center">
-            <p className="text-[10px] font-semibold text-green-600">🎉 최근 추첨</p>
-            <p className="text-[10px] text-gray-500 mt-0.5">
+          <div className="border-t border-blue-100 bg-white/50 px-3 py-2 text-center">
+            <p className="text-[9px] font-semibold text-green-600">🎉 최근 추첨</p>
+            <p className="text-[9px] text-gray-500 mt-0.5">
               {new Date(lastDraw.drawnAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
               &nbsp;·&nbsp;{lastDraw.winnerCount}명 당첨
             </p>
