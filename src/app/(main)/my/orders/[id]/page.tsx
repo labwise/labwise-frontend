@@ -205,9 +205,22 @@ export default function OrderDetailPage() {
             </p>
           )}
           {order.trackingNumber && (
-            <div className="mt-3 rounded-lg bg-purple-50 px-3 py-2 text-sm">
-              <span className="text-purple-700 font-medium">{order.trackingCompany}</span>
-              <span className="ml-2 text-purple-600">{order.trackingNumber}</span>
+            <div className="mt-3 rounded-lg bg-purple-50 border border-purple-100 px-4 py-3 flex items-center justify-between">
+              <div className="text-sm">
+                <p className="text-xs text-purple-500 mb-0.5">배송 정보</p>
+                <p className="font-medium text-purple-800">
+                  {order.trackingCompany}&nbsp;
+                  <span className="font-mono">{order.trackingNumber}</span>
+                </p>
+              </div>
+              <a
+                href={`https://tracker.delivery/#/${order.trackingCompany}/${order.trackingNumber}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex-shrink-0 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-purple-700"
+              >
+                배송 조회
+              </a>
             </div>
           )}
         </div>

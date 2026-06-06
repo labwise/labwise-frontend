@@ -2,12 +2,24 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import adminApi from '@/lib/admin-api';
+import { Truck } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
-  PENDING: '주문 접수', CONFIRMED: '주문 확인', PREPARING: '준비중',
+  PENDING: '주문 접수', PAID: '결제 완료', CONFIRMED: '주문 확인', PREPARING: '준비중',
   SHIPPED: '배송중', DELIVERED: '배송완료', CANCELLED: '취소됨', REFUNDED: '환불됨',
 };
-const STATUS_FLOW = ['PENDING', 'CONFIRMED', 'PREPARING', 'SHIPPED', 'DELIVERED'];
+const STATUS_FLOW = ['PENDING', 'PAID', 'CONFIRMED', 'PREPARING', 'SHIPPED', 'DELIVERED'];
+
+const CARRIERS = [
+  { value: 'cjlogistics', label: 'CJ대한통운' },
+  { value: 'lotteglogis', label: '롯데택배' },
+  { value: 'hanjin', label: '한진택배' },
+  { value: 'koreapost', label: '우체국택배' },
+  { value: 'ilogen', label: '로젠택배' },
+  { value: 'kdexp', label: '경동택배' },
+  { value: 'daesin', label: '대신택배' },
+  { value: 'etc', label: '기타' },
+];
 
 interface OrderItem {
   id: string;
@@ -20,6 +32,7 @@ interface Order {
   orderNumber: string;
   status: string;
   totalAmount: number;
+  finalAmount: number;
   shippingFee: number;
   discountAmount: number;
   createdAt: string;
@@ -27,6 +40,7 @@ interface Order {
   shippingAddress: { recipientName: string; phone: string; address: string; detailAddress: string; zipCode: string };
   items: OrderItem[];
   trackingNumber?: string;
+  trackingCompany?: string;
 }
 
 export default function OrderDetailPage() {
@@ -36,13 +50,17 @@ export default function OrderDetailPage() {
   const [newStatus, setNewStatus] = useState('');
   const [reason, setReason] = useState('');
   const [trackingNumber, setTrackingNumber] = useState('');
+  const [trackingCompany, setTrackingCompany] = useState('cjlogistics');
   const [saving, setSaving] = useState(false);
+  const [trackingSaving, setTrackingSaving] = useState(false);
+  const [trackingSaved, setTrackingSaved] = useState(false);
 
   useEffect(() => {
     adminApi.get(`/admin/orders/${id}`).then(({ data }) => {
       setOrder(data);
       setNewStatus(data.status);
       setTrackingNumber(data.trackingNumber ?? '');
+      if (data.trackingCompany) setTrackingCompany(data.trackingCompany);
     });
   }, [id]);
 
@@ -57,6 +75,22 @@ export default function OrderDetailPage() {
       setOrder(data);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleTrackingSave() {
+    if (!trackingNumber.trim()) return;
+    setTrackingSaving(true);
+    try {
+      const { data } = await adminApi.put(`/admin/orders/${id}/tracking`, {
+        trackingNumber: trackingNumber.trim(),
+        trackingCompany,
+      });
+      setOrder(data);
+      setTrackingSaved(true);
+      setTimeout(() => setTrackingSaved(false), 2000);
+    } finally {
+      setTrackingSaving(false);
     }
   }
 
@@ -88,7 +122,7 @@ export default function OrderDetailPage() {
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100 space-y-1 text-sm">
               <div className="flex justify-between text-gray-500">
-                <span>배송비</span><span>{order.shippingFee.toLocaleString()}원</span>
+                <span>배송비</span><span>{order.shippingFee?.toLocaleString() ?? 0}원</span>
               </div>
               {order.discountAmount > 0 && (
                 <div className="flex justify-between text-red-500">
@@ -96,7 +130,7 @@ export default function OrderDetailPage() {
                 </div>
               )}
               <div className="flex justify-between font-bold text-gray-900 text-base pt-2 border-t border-gray-100">
-                <span>합계</span><span>{order.totalAmount.toLocaleString()}원</span>
+                <span>합계</span><span>{(order.finalAmount ?? order.totalAmount)?.toLocaleString()}원</span>
               </div>
             </div>
           </div>
@@ -111,6 +145,62 @@ export default function OrderDetailPage() {
                 <p>[{order.shippingAddress.zipCode}] {order.shippingAddress.address} {order.shippingAddress.detailAddress}</p>
               </div>
             )}
+          </div>
+
+          {/* 운송장 입력 */}
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Truck size={16} className="text-gray-500" />
+              <h2 className="font-semibold text-gray-800">운송장 관리</h2>
+            </div>
+            {order.trackingNumber && (
+              <div className="mb-3 rounded-lg bg-purple-50 border border-purple-100 px-4 py-3 flex items-center justify-between">
+                <div className="text-sm">
+                  <span className="text-purple-700 font-medium">
+                    {CARRIERS.find(c => c.value === order.trackingCompany)?.label ?? order.trackingCompany}
+                  </span>
+                  <span className="ml-2 font-mono text-purple-600">{order.trackingNumber}</span>
+                </div>
+                <a
+                  href={`https://tracker.delivery/#/${order.trackingCompany}/${order.trackingNumber}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:underline"
+                >
+                  배송 조회 →
+                </a>
+              </div>
+            )}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">택배사</label>
+                <select
+                  value={trackingCompany}
+                  onChange={(e) => setTrackingCompany(e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {CARRIERS.map(c => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">송장 번호</label>
+                <input
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  placeholder="숫자만 입력"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                />
+              </div>
+              <button
+                onClick={handleTrackingSave}
+                disabled={trackingSaving || !trackingNumber.trim()}
+                className="w-full bg-purple-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-50"
+              >
+                {trackingSaved ? '저장됨 ✓' : trackingSaving ? '저장 중...' : '운송장 저장'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -172,12 +262,6 @@ export default function OrderDetailPage() {
                 <span>주문일</span>
                 <span>{new Date(order.createdAt).toLocaleString('ko-KR')}</span>
               </div>
-              {order.trackingNumber && (
-                <div className="flex justify-between">
-                  <span>운송장</span>
-                  <span className="font-mono">{order.trackingNumber}</span>
-                </div>
-              )}
             </div>
           </div>
         </div>
