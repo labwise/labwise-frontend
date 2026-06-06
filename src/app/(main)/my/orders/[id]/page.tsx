@@ -4,11 +4,13 @@ import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, Receipt } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { Order } from '@/types';
 import { formatPrice, formatWise, formatDateTime } from '@/lib/utils';
 import { Button } from '@/components/ui/Button';
+
+interface PaymentInfo { receiptUrl?: string; method?: string; }
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   PENDING: { label: '결제 대기', color: 'text-yellow-600 bg-yellow-50' },
@@ -32,6 +34,19 @@ export default function OrderDetailPage() {
       const { data } = await api.get(`/orders/${id}`);
       return data;
     },
+  });
+
+  const { data: paymentInfo } = useQuery<PaymentInfo>({
+    queryKey: ['payment', id],
+    queryFn: async () => {
+      try {
+        const { data } = await api.get(`/payments/orders/${id}`);
+        return data;
+      } catch {
+        return {};
+      }
+    },
+    enabled: !!order && (order.status === 'PAID' || order.status === 'PREPARING' || order.status === 'SHIPPED' || order.status === 'DELIVERED'),
   });
 
   const cancelMutation = useMutation({
@@ -189,6 +204,19 @@ export default function OrderDetailPage() {
             </div>
           </div>
         </div>
+        {paymentInfo?.receiptUrl && (
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <a
+              href={paymentInfo.receiptUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <Receipt className="h-4 w-4" />
+              카드 영수증 보기
+            </a>
+          </div>
+        )}
       </div>
 
       {addr && (
