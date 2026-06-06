@@ -20,7 +20,6 @@ export default function ProductDetailPage() {
   const { addItem } = useCartStore();
   const [qty, setQty] = useState(1);
   const [adding, setAdding] = useState(false);
-  const [buyingNow, setBuyingNow] = useState(false);
 
   const { data: product, isLoading } = useQuery<Product>({
     queryKey: ['product', slug],
@@ -48,23 +47,22 @@ export default function ProductDetailPage() {
     }
   };
 
-  const handleBuyNow = async () => {
+  const handleBuyNow = () => {
     if (!user) {
       router.push(`/login?redirect=/products/${product!.slug}`);
       return;
     }
-    setBuyingNow(true);
-    try {
-      await addItem(product!.id, qty, {
-        name: product!.name,
-        slug: product!.slug,
-        price,
-        imageUrl: primaryImage?.url,
-      });
-      router.push('/checkout');
-    } finally {
-      setBuyingNow(false);
-    }
+    sessionStorage.setItem('labwise_buy_now', JSON.stringify({
+      productId: product!.id,
+      productName: product!.name,
+      unitPrice: price,
+      quantity: qty,
+      imageUrl: primaryImage?.url,
+      stockQuantity: product!.stockQuantity,
+      minOrderQty: product!.minOrderQty ?? 1,
+      maxOrderQty: product!.maxOrderQty ?? undefined,
+    }));
+    router.push('/checkout?mode=buyNow');
   };
 
   if (isLoading) {
@@ -171,7 +169,6 @@ export default function ProductDetailPage() {
             <Button
               onClick={handleBuyNow}
               disabled={product.stockQuantity === 0 || !product.isOnSale}
-              loading={buyingNow}
               className="flex-1"
             >
               바로 구매

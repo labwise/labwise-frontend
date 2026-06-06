@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { MapPin } from 'lucide-react';
-import { useCartStore } from '@/store/cart.store';
+import { MapPin, Plus, Minus } from 'lucide-react';
+import { useCartStore, type CartItem } from '@/store/cart.store';
 import { useAuthStore } from '@/store/auth.store';
 import { api } from '@/lib/api';
 import { formatPrice, formatWise } from '@/lib/utils';
@@ -27,14 +27,21 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 interface SavedAddress {
-  id: string;
-  label: string | null;
-  recipientName: string;
-  phone: string;
-  postalCode: string;
-  address: string;
-  addressDetail: string | null;
-  isDefault: boolean;
+  id: string; label: string | null;
+  recipientName: string; phone: string;
+  postalCode: string; address: string;
+  addressDetail: string | null; isDefault: boolean;
+}
+
+export interface BuyNowItem {
+  productId: string;
+  productName: string;
+  unitPrice: number;
+  quantity: number;
+  imageUrl?: string;
+  stockQuantity: number;
+  minOrderQty: number;
+  maxOrderQty?: number;
 }
 
 const PAYMENT_METHODS = [
@@ -43,11 +50,45 @@ const PAYMENT_METHODS = [
   { value: 'BANK_TRANSFER', label: '무통장 입금', desc: '관리자 확인 후 처리' },
 ] as const;
 
-export default function CheckoutPage() {
+function QtyControl({
+  qty, min, max, onChange,
+}: { qty: number; min: number; max: number; onChange: (n: number) => void }) {
+  return (
+    <div className="flex items-center rounded-md border border-gray-300">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(min, qty - 1))}
+        disabled={qty <= min}
+        className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-30"
+      >
+        <Minus className="h-3 w-3" />
+      </button>
+      <span className="w-8 text-center text-sm font-medium">{qty}</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(max, qty + 1))}
+        disabled={qty >= max}
+        className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-30"
+      >
+        <Plus className="h-3 w-3" />
+      </button>
+    </div>
+  );
+}
+
+function CheckoutInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isBuyNow = searchParams.get('mode') === 'buyNow';
+
   const { user } = useAuthStore();
-  const { items, clearCart, fetchCart } = useCartStore();
+  const { items: cartItems, clearCart, fetchCart, updateItem } = useCartStore();
+
   const [cartReady, setCartReady] = useState(false);
+  const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
+  // local qty overrides (productId → qty)
+  const [localQtys, setLocalQtys] = useState<Record<string, number>>({});
+
   const [pointInput, setPointInput] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -57,29 +98,40 @@ export default function CheckoutPage() {
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      paymentMethod: 'CARD',
-      taxInvoiceRequested: false,
-    },
+    defaultValues: { paymentMethod: 'CARD', taxInvoiceRequested: false },
   });
 
   const paymentMethod = watch('paymentMethod');
 
-  const productTotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-  const shippingFee = productTotal >= 50000 ? 0 : 3000;
-  const appliedPoints = Math.min(pointInput, user?.pointBalance ?? 0, productTotal);
-  const finalAmount = productTotal - appliedPoints + shippingFee;
-
-  // 로그인 확인 후 장바구니를 반드시 fetch해서 비어있으면 redirect
+  // ── 초기화 ─────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
-    fetchCart().then(() => setCartReady(true));
+
+    if (isBuyNow) {
+      try {
+        const raw = sessionStorage.getItem('labwise_buy_now');
+        if (raw) {
+          const item: BuyNowItem = JSON.parse(raw);
+          setBuyNowItem(item);
+          setLocalQtys({ [item.productId]: item.quantity });
+        } else {
+          router.push('/products');
+          return;
+        }
+      } catch {
+        router.push('/products');
+        return;
+      }
+      setCartReady(true);
+    } else {
+      fetchCart().then(() => setCartReady(true));
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!cartReady) return;
-    if (items.length === 0) router.push('/cart');
-  }, [cartReady, items, router]);
+    if (!isBuyNow && cartItems.length === 0) router.push('/cart');
+  }, [cartReady, cartItems, isBuyNow, router]);
 
   useEffect(() => {
     api.get('/shipping-addresses').then(({ data }) => {
@@ -87,8 +139,55 @@ export default function CheckoutPage() {
       const def = data.find((a: SavedAddress) => a.isDefault) ?? data[0];
       if (def) fillFromAddress(def);
     }).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── 수량 변경 ──────────────────────────────────────────────────────────────
+  const handleQtyChange = useCallback(async (item: CartItem | BuyNowItem, newQty: number) => {
+    const productId = 'productId' in item ? item.productId : item.productId;
+    setLocalQtys((prev) => ({ ...prev, [productId]: newQty }));
+
+    // 장바구니 모드: 서버 동기화
+    if (!isBuyNow) {
+      const cartItem = cartItems.find((ci) => ci.productId === productId);
+      if (cartItem) {
+        try { await updateItem(cartItem.id, newQty); } catch {}
+      }
+    }
+  }, [isBuyNow, cartItems, updateItem]);
+
+  // ── 실제 결제 아이템 목록 ──────────────────────────────────────────────────
+  const displayItems: Array<{
+    key: string; productId: string; productName: string;
+    unitPrice: number; quantity: number;
+    stockQuantity: number; minQty: number; maxQty: number;
+  }> = isBuyNow && buyNowItem
+    ? [{
+        key: buyNowItem.productId,
+        productId: buyNowItem.productId,
+        productName: buyNowItem.productName,
+        unitPrice: buyNowItem.unitPrice,
+        quantity: localQtys[buyNowItem.productId] ?? buyNowItem.quantity,
+        stockQuantity: buyNowItem.stockQuantity,
+        minQty: buyNowItem.minOrderQty,
+        maxQty: Math.min(buyNowItem.maxOrderQty ?? 9999, buyNowItem.stockQuantity),
+      }]
+    : cartItems.map((ci) => ({
+        key: ci.id,
+        productId: ci.productId,
+        productName: ci.productName,
+        unitPrice: ci.unitPrice,
+        quantity: localQtys[ci.productId] ?? ci.quantity,
+        stockQuantity: 9999, // 장바구니는 상세 재고 없음, 서버가 검증
+        minQty: 1,
+        maxQty: 9999,
+      }));
+
+  const productTotal = displayItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const shippingFee = productTotal >= 50000 ? 0 : 3000;
+  const appliedPoints = Math.min(pointInput, user?.pointBalance ?? 0, productTotal);
+  const finalAmount = productTotal - appliedPoints + shippingFee;
+
+  // ── 주소 자동 입력 ─────────────────────────────────────────────────────────
   const fillFromAddress = (addr: SavedAddress) => {
     setValue('recipientName', addr.recipientName);
     setValue('phone', addr.phone);
@@ -98,33 +197,33 @@ export default function CheckoutPage() {
     setSelectedAddressId(addr.id);
   };
 
+  // ── 주문 제출 ──────────────────────────────────────────────────────────────
   const onSubmit = async (data: FormData) => {
     setSubmitting(true);
     setError('');
+    let createdOrderId: string | null = null;
     try {
       const { data: order } = await api.post('/orders', {
-        items: items.map((i) => ({ productId: i.productId, quantity: i.quantity })),
+        items: displayItems.map((i) => ({ productId: i.productId, quantity: i.quantity })),
         shippingAddress: {
-          recipientName: data.recipientName,
-          phone: data.phone,
-          zipCode: data.zipCode,
-          address: data.address,
-          addressDetail: data.addressDetail,
+          recipientName: data.recipientName, phone: data.phone,
+          zipCode: data.zipCode, address: data.address, addressDetail: data.addressDetail,
         },
         pointAmount: appliedPoints,
         paymentMethod: data.paymentMethod,
         taxInvoiceRequested: data.taxInvoiceRequested ?? false,
         memo: data.memo,
       });
+      createdOrderId = order.id;
 
-      // 무통장 입금: 토스 없이 바로 대기 페이지로
+      // 무통장 입금: 바로 대기 페이지
       if (data.paymentMethod === 'BANK_TRANSFER') {
-        await clearCart();
+        isBuyNow ? sessionStorage.removeItem('labwise_buy_now') : await clearCart();
         router.push(`/checkout/success?orderId=${order.id}&method=BANK_TRANSFER&amount=${finalAmount}`);
         return;
       }
 
-      // 카드 / 가상계좌: 토스페이먼츠 SDK 호출
+      // 카드 / 가상계좌: 토스페이먼츠 SDK
       const { loadTossPayments, ANONYMOUS } = await import('@tosspayments/tosspayments-sdk');
       const { data: payConfig } = await api.get('/payments/config');
       const clientKey: string = payConfig.clientKey;
@@ -134,13 +233,11 @@ export default function CheckoutPage() {
       }
 
       const tossPayments = await loadTossPayments(clientKey);
-      const customerKey = user?.id ?? ANONYMOUS;
-      const payment = tossPayments.payment({ customerKey });
-
+      const payment = tossPayments.payment({ customerKey: user?.id ?? ANONYMOUS });
       const orderName =
-        items.length === 1
-          ? items[0].productName
-          : `${items[0].productName} 외 ${items.length - 1}개`;
+        displayItems.length === 1
+          ? displayItems[0].productName
+          : `${displayItems[0].productName} 외 ${displayItems.length - 1}개`;
 
       await payment.requestPayment({
         method: data.paymentMethod as any,
@@ -152,9 +249,15 @@ export default function CheckoutPage() {
         customerEmail: user?.email,
         customerName: user?.name,
       });
+
+      // 결제 완료 후 카트/buyNow 정리
+      isBuyNow ? sessionStorage.removeItem('labwise_buy_now') : await clearCart();
     } catch (err: any) {
-      // 사용자가 결제창을 닫으면 에러 발생 — 조용히 처리
       if (err?.code === 'USER_CANCEL') {
+        // 카드 결제 취소 → 생성된 주문 자동 취소
+        if (createdOrderId) {
+          try { await api.delete(`/orders/${createdOrderId}`); } catch {}
+        }
         setError('결제를 취소하셨습니다.');
         return;
       }
@@ -163,6 +266,8 @@ export default function CheckoutPage() {
       setSubmitting(false);
     }
   };
+
+  if (!cartReady) return null;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
@@ -181,12 +286,10 @@ export default function CheckoutPage() {
                     onClick={() => setShowAddressPicker((v) => !v)}
                     className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
                   >
-                    <MapPin className="h-4 w-4" />
-                    배송지 선택
+                    <MapPin className="h-4 w-4" /> 배송지 선택
                   </button>
                 )}
               </div>
-
               {showAddressPicker && savedAddresses.length > 0 && (
                 <div className="mb-4 space-y-2 rounded-lg border border-gray-100 bg-gray-50 p-3">
                   {savedAddresses.map((addr) => (
@@ -197,8 +300,7 @@ export default function CheckoutPage() {
                       }`}
                     >
                       <input
-                        type="radio"
-                        name="savedAddress"
+                        type="radio" name="savedAddress"
                         checked={selectedAddressId === addr.id}
                         onChange={() => { fillFromAddress(addr); setShowAddressPicker(false); }}
                         className="mt-0.5"
@@ -215,20 +317,13 @@ export default function CheckoutPage() {
                   ))}
                 </div>
               )}
-
               <div className="grid grid-cols-2 gap-4">
                 <Input label="받는 분" {...register('recipientName')} error={errors.recipientName?.message} />
                 <Input label="연락처" {...register('phone')} placeholder="010-1234-5678" error={errors.phone?.message} />
                 <Input label="우편번호" {...register('zipCode')} error={errors.zipCode?.message} />
-                <div className="col-span-2">
-                  <Input label="주소" {...register('address')} error={errors.address?.message} />
-                </div>
-                <div className="col-span-2">
-                  <Input label="상세 주소" {...register('addressDetail')} placeholder="동, 호수 등" />
-                </div>
-                <div className="col-span-2">
-                  <Input label="배송 메모 (선택)" {...register('memo')} placeholder="문앞에 놓아주세요" />
-                </div>
+                <div className="col-span-2"><Input label="주소" {...register('address')} error={errors.address?.message} /></div>
+                <div className="col-span-2"><Input label="상세 주소" {...register('addressDetail')} placeholder="동, 호수 등" /></div>
+                <div className="col-span-2"><Input label="배송 메모 (선택)" {...register('memo')} placeholder="문앞에 놓아주세요" /></div>
               </div>
             </div>
 
@@ -242,18 +337,12 @@ export default function CheckoutPage() {
                   </p>
                   <div className="flex flex-1 items-center gap-2">
                     <input
-                      type="number"
-                      value={pointInput}
+                      type="number" value={pointInput}
                       onChange={(e) => setPointInput(Number(e.target.value))}
-                      min={0}
-                      max={Math.min(user.pointBalance, productTotal)}
+                      min={0} max={Math.min(user.pointBalance, productTotal)}
                       className="w-32 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
                     />
-                    <button
-                      type="button"
-                      onClick={() => setPointInput(Math.min(user.pointBalance, productTotal))}
-                      className="text-sm text-blue-600 hover:text-blue-700"
-                    >
+                    <button type="button" onClick={() => setPointInput(Math.min(user.pointBalance, productTotal))} className="text-sm text-blue-600 hover:text-blue-700">
                       전액 사용
                     </button>
                   </div>
@@ -269,9 +358,7 @@ export default function CheckoutPage() {
                   <label
                     key={value}
                     className={`flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 transition-colors ${
-                      paymentMethod === value
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
+                      paymentMethod === value ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <input type="radio" value={value} {...register('paymentMethod')} className="sr-only" />
@@ -280,7 +367,6 @@ export default function CheckoutPage() {
                   </label>
                 ))}
               </div>
-
               {paymentMethod === 'BANK_TRANSFER' && (
                 <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
                   주문 완료 후 안내되는 계좌로 입금하시면, 관리자가 확인 후 주문을 처리합니다.
@@ -297,11 +383,7 @@ export default function CheckoutPage() {
             {user?.taxInvoiceEnabled && (
               <div className="rounded-xl border border-gray-200 bg-white p-4">
                 <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    {...register('taxInvoiceRequested')}
-                    className="h-4 w-4 rounded accent-blue-600"
-                  />
+                  <input type="checkbox" {...register('taxInvoiceRequested')} className="h-4 w-4 rounded accent-blue-600" />
                   <span className="text-sm font-medium text-gray-700">세금계산서 발행 요청</span>
                 </label>
               </div>
@@ -311,12 +393,25 @@ export default function CheckoutPage() {
           {/* 주문 요약 */}
           <div className="lg:col-span-1">
             <div className="sticky top-20 rounded-xl border border-gray-200 bg-white p-6">
-              <h2 className="mb-4 font-semibold text-gray-900">주문 상품 ({items.length})</h2>
-              <div className="mb-4 space-y-2 text-sm">
-                {items.map((item) => (
-                  <div key={item.id} className="flex justify-between text-gray-600">
-                    <span className="line-clamp-1 flex-1">{item.productName}</span>
-                    <span className="ml-2 flex-shrink-0">×{item.quantity}</span>
+              <h2 className="mb-4 font-semibold text-gray-900">주문 상품 ({displayItems.length})</h2>
+              <div className="mb-4 space-y-3 text-sm">
+                {displayItems.map((item) => (
+                  <div key={item.key} className="space-y-1.5">
+                    <p className="line-clamp-2 text-gray-700 font-medium text-xs leading-tight">{item.productName}</p>
+                    <div className="flex items-center justify-between">
+                      <QtyControl
+                        qty={item.quantity}
+                        min={item.minQty}
+                        max={item.maxQty}
+                        onChange={(n) => handleQtyChange(item as any, n)}
+                      />
+                      <span className="text-sm font-semibold text-gray-900">
+                        {formatPrice(item.unitPrice * item.quantity)}
+                      </span>
+                    </div>
+                    {item.quantity >= item.stockQuantity && item.stockQuantity < 9999 && (
+                      <p className="text-xs text-red-500">재고 최대 수량입니다</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -348,7 +443,6 @@ export default function CheckoutPage() {
               </div>
 
               {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
-
               <Button type="submit" className="mt-4 w-full" loading={submitting}>
                 {paymentMethod === 'BANK_TRANSFER' ? '주문 완료' : '결제하기'}
               </Button>
@@ -357,5 +451,13 @@ export default function CheckoutPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense fallback={null}>
+      <CheckoutInner />
+    </Suspense>
   );
 }
