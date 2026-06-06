@@ -110,14 +110,19 @@ export default function OrdersPage() {
     staleTime: 1000 * 60 * 5,
   });
 
+  // 카드 결제 미완료 주문은 노출하지 않음
+  const visibleOrders = orders.filter(
+    (o) => !(o.status === 'PENDING' && o.paymentMethod === 'CARD'),
+  );
+
   const filtered = activeTab === 'ALL'
-    ? orders
-    : orders.filter((o) => o.status === activeTab);
+    ? visibleOrders
+    : visibleOrders.filter((o) => o.status === activeTab);
 
   const counts = TABS.reduce<Record<string, number>>((acc, tab) => {
     acc[tab.key] = tab.key === 'ALL'
-      ? orders.length
-      : orders.filter((o) => o.status === tab.key).length;
+      ? visibleOrders.length
+      : visibleOrders.filter((o) => o.status === tab.key).length;
     return acc;
   }, {});
 
@@ -166,11 +171,8 @@ export default function OrdersPage() {
       ) : (
         <div className="space-y-4">
           {filtered.map((order) => {
-            const isCardPending = order.status === 'PENDING' && order.paymentMethod === 'CARD';
             const isBankPending = order.status === 'PENDING' && order.paymentMethod === 'BANK_TRANSFER';
-            const st = isCardPending
-              ? { label: '결제 미완료', color: 'text-gray-500 bg-gray-100' }
-              : (statusLabels[order.status] ?? { label: order.status, color: 'text-gray-600 bg-gray-50' });
+            const st = statusLabels[order.status] ?? { label: order.status, color: 'text-gray-600 bg-gray-50' };
             return (
               <div key={order.id} className="rounded-xl border border-gray-200 bg-white">
                 <Link
