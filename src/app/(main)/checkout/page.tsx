@@ -142,8 +142,8 @@ function CheckoutInner() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 수량 변경 ──────────────────────────────────────────────────────────────
-  const handleQtyChange = useCallback(async (item: CartItem | BuyNowItem, newQty: number) => {
-    const productId = 'productId' in item ? item.productId : item.productId;
+  const handleQtyChange = useCallback(async (item: { productId: string; key?: string }, newQty: number) => {
+    const productId = item.productId;
     setLocalQtys((prev) => ({ ...prev, [productId]: newQty }));
 
     // 장바구니 모드: 서버 동기화
@@ -403,7 +403,7 @@ function CheckoutInner() {
                         qty={item.quantity}
                         min={item.minQty}
                         max={item.maxQty}
-                        onChange={(n) => handleQtyChange(item as any, n)}
+                        onChange={(n) => handleQtyChange(item, n)}
                       />
                       <span className="text-sm font-semibold text-gray-900">
                         {formatPrice(item.unitPrice * item.quantity)}
