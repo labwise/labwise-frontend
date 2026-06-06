@@ -46,7 +46,8 @@ const PAYMENT_METHODS = [
 export default function CheckoutPage() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { items, clearCart } = useCartStore();
+  const { items, clearCart, fetchCart } = useCartStore();
+  const [cartReady, setCartReady] = useState(false);
   const [pointInput, setPointInput] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -69,10 +70,16 @@ export default function CheckoutPage() {
   const appliedPoints = Math.min(pointInput, user?.pointBalance ?? 0, productTotal);
   const finalAmount = productTotal - appliedPoints + shippingFee;
 
+  // 로그인 확인 후 장바구니를 반드시 fetch해서 비어있으면 redirect
   useEffect(() => {
-    if (!user) router.push('/login');
+    if (!user) { router.push('/login'); return; }
+    fetchCart().then(() => setCartReady(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!cartReady) return;
     if (items.length === 0) router.push('/cart');
-  }, [user, items, router]);
+  }, [cartReady, items, router]);
 
   useEffect(() => {
     api.get('/shipping-addresses').then(({ data }) => {

@@ -16,6 +16,7 @@ interface SiteConfig {
   heroImages?: string[]; heroInterval?: number;
   companyName?: string; ceoName?: string; businessNumber?: string;
   address?: string; phone?: string; email?: string; footerCopyright?: string;
+  bankName?: string; bankAccount?: string; bankAccountHolder?: string;
 }
 
 const DEFAULTS: SiteConfig = {
@@ -360,6 +361,26 @@ export default function SiteSettingsPage() {
               <label className="mb-1 block text-xs font-medium text-gray-700">푸터 저작권 문구</label>
               <input value={cfg.footerCopyright ?? ''} onChange={(e) => set('footerCopyright', e.target.value)}
                 placeholder="© 2026 랩와이즈. All rights reserved." className={inputCls} />
+            </div>
+          </div>
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-700">무통장 입금 계좌 정보</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">은행명</label>
+                <input value={cfg.bankName ?? ''} onChange={(e) => set('bankName', e.target.value)}
+                  placeholder="국민은행" className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">예금주</label>
+                <input value={cfg.bankAccountHolder ?? ''} onChange={(e) => set('bankAccountHolder', e.target.value)}
+                  placeholder="(주)랩와이즈" className={inputCls} />
+              </div>
+              <div className="col-span-2">
+                <label className="mb-1 block text-xs font-medium text-gray-700">계좌번호</label>
+                <input value={cfg.bankAccount ?? ''} onChange={(e) => set('bankAccount', e.target.value)}
+                  placeholder="000-000-000000" className={inputCls} />
+              </div>
             </div>
           </div>
         </div>
