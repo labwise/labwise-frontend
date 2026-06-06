@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -29,10 +29,11 @@ export default function PointMallPage() {
     enabled: !!user?.hasPointmallAccess,
   });
 
-  if (user === null) {
-    router.push('/login');
-    return null;
-  }
+  useEffect(() => {
+    if (user === null) router.push('/login');
+  }, [user, router]);
+
+  if (user === null) return null;
 
   if (!user.hasPointmallAccess) {
     return (
