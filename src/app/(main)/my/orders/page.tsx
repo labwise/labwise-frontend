@@ -7,13 +7,14 @@ import type { Order } from '@/types';
 import { formatPrice, formatDateTime } from '@/lib/utils';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
-  PENDING: { label: '결제 대기', color: 'text-yellow-600 bg-yellow-50' },
-  PAID: { label: '결제 완료', color: 'text-blue-600 bg-blue-50' },
-  PREPARING: { label: '상품 준비', color: 'text-indigo-600 bg-indigo-50' },
-  SHIPPED: { label: '배송 중', color: 'text-purple-600 bg-purple-50' },
-  DELIVERED: { label: '배송 완료', color: 'text-green-600 bg-green-50' },
-  CANCELLED: { label: '취소', color: 'text-red-600 bg-red-50' },
-  REFUNDED: { label: '환불', color: 'text-gray-600 bg-gray-50' },
+  PENDING:   { label: '결제 대기', color: 'text-yellow-600 bg-yellow-50' },
+  PAID:      { label: '결제 완료', color: 'text-blue-600 bg-blue-50' },
+  PREPARING: { label: '배송 준비', color: 'text-indigo-600 bg-indigo-50' },
+  SHIPPED:   { label: '배송 중',   color: 'text-purple-600 bg-purple-50' },
+  DELIVERED: { label: '배송 완료', color: 'text-teal-600 bg-teal-50' },
+  CONFIRMED: { label: '완료',      color: 'text-green-600 bg-green-50' },
+  CANCELLED: { label: '취소',      color: 'text-red-600 bg-red-50' },
+  REFUNDED:  { label: '환불',      color: 'text-gray-600 bg-gray-50' },
 };
 
 export default function OrdersPage() {

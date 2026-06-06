@@ -68,3 +68,12 @@ body {
 .rich-content a { color: #2c94d2; text-decoration: underline; }
 .rich-content hr { border: none; border-top: 1px solid #e5e7eb; margin: 1rem 0; }
 .rich-content img { max-width: 100%; border-radius: 0.5rem; margin: 0.75rem 0; }
+
+/* Winner ticker scroll animation */
+@keyframes ticker {
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-ticker {
+  animation: ticker linear infinite;
+}

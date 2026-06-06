@@ -103,9 +103,9 @@ export default function JackpotFlask() {
             </defs>
 
             {/* ── 마개 (스토퍼) ── */}
-            <rect x="36" y="3" width="28" height="16" rx="5"
-              fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1.2" />
-            <rect x="40" y="6" width="12" height="5" rx="2.5"
+            <rect x="40" y="4" width="20" height="9" rx="3"
+              fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
+            <rect x="43" y="6" width="8" height="3" rx="1.5"
               fill="white" opacity="0.55" />
 
             {/* ── 유리 배경 (목 + 몸통) ── */}
