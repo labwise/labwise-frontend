@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 
 interface Tier { id: string; minAmount: number; prizeName: string; prizeImageUrl?: string }
+interface Certificate { id: string; orgName: string; amount: number; certificateDate: string }
 interface JackpotData {
   currentAmount: number;
   status: 'OPEN' | 'CLOSED' | 'DRAWN';
@@ -24,7 +25,15 @@ export default function JackpotFlask() {
     staleTime: 30000,
   });
 
+  const { data: certs = [] } = useQuery<Certificate[]>({
+    queryKey: ['donation-certs-widget'],
+    queryFn: async () => { const { data } = await api.get('/jackpot/certificates'); return data; },
+    staleTime: 1000 * 60 * 10,
+  });
+
   if (!data) return null;
+
+  const totalDonated = certs.reduce((s, c) => s + Number(c.amount), 0);
 
   const sortedTiers = [...(data.tiers ?? [])].sort((a, b) => a.minAmount - b.minAmount);
   const maxAmount = sortedTiers.length ? sortedTiers[sortedTiers.length - 1].minAmount * 1.5 : 100000;
@@ -146,6 +155,19 @@ export default function JackpotFlask() {
             <p className="text-[9px] text-blue-400 mt-0.5">당첨 이력 전체보기 →</p>
           </Link>
         )}
+
+        {/* 기부 내역 */}
+        <Link href="/donations" className="block border-t border-green-100 bg-green-50/60 px-3 py-2 text-center hover:bg-green-50 transition-colors">
+          <p className="text-[9px] font-semibold text-green-700">💚 기부 내역</p>
+          {totalDonated > 0 ? (
+            <>
+              <p className="text-[10px] font-bold text-green-600 mt-0.5">{formatPrice(totalDonated)}</p>
+              <p className="text-[9px] text-green-500">총 {certs.length}건 기부 완료</p>
+            </>
+          ) : (
+            <p className="text-[9px] text-green-500 mt-0.5">기부 증서 보기 →</p>
+          )}
+        </Link>
       </div>
     </div>
   );
