@@ -52,11 +52,11 @@ export default function DonationsPage() {
             <div key={cert.id} className="rounded-2xl border border-green-100 bg-white overflow-hidden shadow-sm">
               {/* 이미지 */}
               {cert.imageBase64 && (
-                <div className="border-b border-green-50 bg-green-50/40 p-4 flex justify-center">
+                <div className="border-b border-green-50 bg-green-50/40 p-6">
                   <img
                     src={cert.imageBase64}
                     alt={`${cert.orgName} 기부 증서`}
-                    className="max-h-64 rounded-lg object-contain shadow-sm"
+                    className="w-full max-h-[480px] rounded-xl object-contain shadow-sm"
                   />
                 </div>
               )}
