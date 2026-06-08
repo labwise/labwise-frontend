@@ -2,16 +2,19 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { formatWise } from '@/lib/utils';
+import { formatPrice } from '@/lib/utils';
 import { Trophy } from 'lucide-react';
 
+interface RecentDraw {
+  id: string;
+  drawnAt: string;
+  totalAmount: number;
+  prizeName?: string;
+  winnerMaskedName?: string;
+}
+
 interface JackpotPublic {
-  recentDraws: {
-    drawnAt: string;
-    winnerCount: number;
-    pointsPerWinner: number;
-    winners: { maskedName: string }[];
-  }[];
+  recentDraws: RecentDraw[];
 }
 
 export default function WinnerTicker() {
@@ -24,21 +27,10 @@ export default function WinnerTicker() {
     staleTime: 1000 * 60 * 5,
   });
 
-  const winners: { name: string; points: number; date: string }[] = [];
-  for (const draw of data?.recentDraws ?? []) {
-    for (const w of draw.winners ?? []) {
-      winners.push({
-        name: w.maskedName,
-        points: draw.pointsPerWinner,
-        date: draw.drawnAt,
-      });
-    }
-  }
+  const draws = data?.recentDraws ?? [];
+  if (draws.length === 0) return null;
 
-  if (winners.length === 0) return null;
-
-  // Duplicate list for seamless loop
-  const items = [...winners, ...winners];
+  const items = [...draws, ...draws];
 
   return (
     <div className="w-full overflow-hidden bg-gradient-to-r from-indigo-600 to-blue-600 py-2.5">
@@ -50,14 +42,15 @@ export default function WinnerTicker() {
         <div className="flex-1 overflow-hidden relative">
           <div
             className="flex gap-8 whitespace-nowrap animate-ticker"
-            style={{ animationDuration: `${Math.max(20, winners.length * 4)}s` }}
+            style={{ animationDuration: `${Math.max(20, draws.length * 6)}s` }}
           >
-            {items.map((w, i) => (
+            {items.map((d, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 text-xs text-white">
-                <span className="font-semibold text-yellow-200">{w.name}</span>
-                <span className="text-blue-200">{formatWise(w.points)} 적립</span>
+                <span className="font-semibold text-yellow-200">{d.winnerMaskedName ?? '???'}</span>
+                <span className="text-blue-200">{d.prizeName ?? '상품'} 당첨</span>
+                <span className="text-blue-300">({formatPrice(d.totalAmount)})</span>
                 <span className="text-blue-300 text-[10px]">
-                  {new Date(w.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
+                  {new Date(d.drawnAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                 </span>
                 <span className="text-blue-400 mx-1">·</span>
               </span>

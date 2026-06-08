@@ -139,11 +139,12 @@ export default function JackpotFlask() {
 
         {/* 최근 당첨 */}
         {lastDraw && (
-          <div className="border-t border-blue-100 bg-white/50 px-3 py-2 text-center">
+          <Link href="/raffle-history" className="block border-t border-blue-100 bg-white/50 px-3 py-2 text-center hover:bg-white/70 transition-colors">
             <p className="text-[9px] font-semibold text-green-600">🎉 최근 당첨</p>
             <p className="text-[9px] text-gray-500 mt-0.5 truncate">{lastDraw.prizeName}</p>
             <p className="text-[9px] text-gray-400">{lastDraw.winnerMaskedName} · {new Date(lastDraw.drawnAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}</p>
-          </div>
+            <p className="text-[9px] text-blue-400 mt-0.5">당첨 이력 전체보기 →</p>
+          </Link>
         )}
       </div>
     </div>
