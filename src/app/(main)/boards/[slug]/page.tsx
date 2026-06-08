@@ -72,8 +72,8 @@ export default function BoardPage() {
           <h1 className="text-2xl font-bold text-gray-900">{board?.name ?? ''}</h1>
           <p className="text-sm text-gray-400 mt-0.5">총 {total}개의 글</p>
         </div>
-        {/* writePermission: ALL=누구나, MEMBER=회원만, ADMIN=관리자만(버튼 숨김) */}
-        {board?.writePermission !== 'ADMIN' && (board?.writePermission === 'ALL' || user) && (
+        {/* board 로드 완료 후 writePermission 체크 */}
+        {board && board.writePermission !== 'ADMIN' && (board.writePermission === 'ALL' || !!user) && (
           <button
             onClick={() => setShowWrite(true)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
