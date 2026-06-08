@@ -175,6 +175,23 @@ export function Header() {
                 와이즈몰
               </Link>
             )}
+
+            {/* 우측 정렬 — 이벤트 | 기부내역 */}
+            <div className="ml-auto flex items-center">
+              <Link
+                href="/boards/event"
+                className="px-3 py-1.5 text-gray-500 hover:text-blue-600 rounded-md hover:bg-gray-50"
+              >
+                이벤트
+              </Link>
+              <span className="text-gray-300 text-xs">|</span>
+              <Link
+                href="/donations"
+                className="px-3 py-1.5 text-gray-500 hover:text-green-600 rounded-md hover:bg-gray-50"
+              >
+                기부내역
+              </Link>
+            </div>
           </div>
         </div>
       </nav>
