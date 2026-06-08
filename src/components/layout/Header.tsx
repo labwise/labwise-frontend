@@ -184,7 +184,6 @@ export function Header() {
               >
                 이벤트
               </Link>
-              <span className="text-gray-300 text-xs">|</span>
               <Link
                 href="/donations"
                 className="px-3 py-1.5 text-gray-500 hover:text-green-600 rounded-md hover:bg-gray-50"

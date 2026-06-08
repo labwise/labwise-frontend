@@ -18,7 +18,7 @@ interface Post {
   user?: { id: string; name: string };
   replies?: { id: string; content: string; createdAt: string; user: { name: string } | null }[];
 }
-interface Board { id: string; name: string; slug: string; type: string; requiresLogin: boolean }
+interface Board { id: string; name: string; slug: string; type: string; requiresLogin: boolean; writePermission: 'ALL' | 'MEMBER' | 'ADMIN' }
 
 const PAGE_SIZE = 20;
 
@@ -69,10 +69,11 @@ export default function BoardPage() {
       {/* 헤더 */}
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{board?.name ?? '게시판'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">{board?.name ?? ''}</h1>
           <p className="text-sm text-gray-400 mt-0.5">총 {total}개의 글</p>
         </div>
-        {user && (
+        {/* writePermission: ALL=누구나, MEMBER=회원만, ADMIN=관리자만(버튼 숨김) */}
+        {board?.writePermission !== 'ADMIN' && (board?.writePermission === 'ALL' || user) && (
           <button
             onClick={() => setShowWrite(true)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"

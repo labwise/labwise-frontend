@@ -47,7 +47,7 @@ export function Footer() {
           <div>
             <h3 className="mb-3 text-sm font-semibold text-gray-900">사회적 책임</h3>
             <ul className="space-y-2 text-sm text-gray-500">
-              <li><Link href="/donations" className="hover:text-green-600">🌱 기부 내역</Link></li>
+              <li><Link href="/donations" className="hover:text-green-600">기부 내역</Link></li>
               <li><Link href="/terms" className="hover:text-blue-600">이용약관</Link></li>
               <li><Link href="/terms/privacy" className="hover:text-blue-600">개인정보처리방침</Link></li>
             </ul>

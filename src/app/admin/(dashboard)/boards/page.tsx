@@ -8,7 +8,14 @@ interface Category { id: string; name: string }
 interface Board {
   id: string; name: string; slug: string; type: string;
   isPublic: boolean; requiresLogin: boolean; isActive: boolean;
+  writePermission: string;
   category?: { id: string; name: string };
+}
+
+const WRITE_PERMISSION_LABELS: Record<string, string> = {
+  ALL: '누구나',
+  MEMBER: '회원만',
+  ADMIN: '관리자만',
 }
 
 const TYPE_LABELS: Record<string, string> = {
@@ -35,7 +42,7 @@ const CREATABLE_TYPES = [
   { value: 'GALLERY', label: '갤러리형 (이미지 나열)' },
 ];
 
-const INIT_FORM = { name: '', slug: '', type: 'GENERAL', categoryId: '', isPublic: true, requiresLogin: false };
+const INIT_FORM = { name: '', slug: '', type: 'GENERAL', categoryId: '', isPublic: true, requiresLogin: false, writePermission: 'MEMBER' };
 
 export default function BoardsPage() {
   const [boards, setBoards] = useState<Board[]>([]);
@@ -78,7 +85,7 @@ export default function BoardsPage() {
   }
 
   function startEdit(b: Board) {
-    setForm({ name: b.name, slug: b.slug, type: b.type, categoryId: b.category?.id ?? '', isPublic: b.isPublic, requiresLogin: b.requiresLogin });
+    setForm({ name: b.name, slug: b.slug, type: b.type, categoryId: b.category?.id ?? '', isPublic: b.isPublic, requiresLogin: b.requiresLogin, writePermission: b.writePermission ?? 'MEMBER' });
     setEditId(b.id);
     setShowForm(true);
   }
@@ -134,14 +141,19 @@ export default function BoardsPage() {
               </select>
               <p className="mt-1 text-xs text-gray-400">1:1 문의는 시스템 기본 제공으로 별도 생성 불필요</p>
             </div>
-            <div className="flex items-center gap-4 col-span-2">
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">글쓰기 권한</label>
+              <select value={form.writePermission} onChange={(e) => setForm({ ...form, writePermission: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none">
+                <option value="ALL">누구나 (비회원 포함)</option>
+                <option value="MEMBER">회원만</option>
+                <option value="ADMIN">관리자만</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-4 col-span-2 mt-1">
               <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
                 <input type="checkbox" checked={form.isPublic} onChange={(e) => setForm({ ...form, isPublic: e.target.checked })} className="rounded" />
                 공개 게시판
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
-                <input type="checkbox" checked={form.requiresLogin} onChange={(e) => setForm({ ...form, requiresLogin: e.target.checked })} className="rounded" />
-                로그인 필요
               </label>
             </div>
           </div>
@@ -167,6 +179,7 @@ export default function BoardsPage() {
               <th className="text-center px-4 py-3 text-gray-500 font-medium">유형</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">카테고리</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">공개</th>
+              <th className="text-center px-4 py-3 text-gray-500 font-medium">글쓰기</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">관리</th>
             </tr>
           </thead>
@@ -187,6 +200,15 @@ export default function BoardsPage() {
                   <td className="px-4 py-3 text-center">
                     <span className={`text-xs font-medium ${b.isPublic ? 'text-green-600' : 'text-gray-400'}`}>
                       {b.isPublic ? '공개' : '비공개'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium ${
+                      b.writePermission === 'ADMIN' ? 'bg-red-100 text-red-700' :
+                      b.writePermission === 'MEMBER' ? 'bg-blue-100 text-blue-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {WRITE_PERMISSION_LABELS[b.writePermission] ?? b.writePermission}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-center">

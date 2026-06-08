@@ -52,7 +52,7 @@ export default function JackpotFlask() {
   const daysLeft = deadline ? Math.ceil((deadline.getTime() - Date.now()) / 86400000) : null;
 
   const fillBottom = 280;
-  const fillTop = 22;
+  const fillTop = 13;
   const fillRange = fillBottom - fillTop;
   const liquidY = fillBottom - (pct / 100) * fillRange;
   const liquidH = (pct / 100) * fillRange;
@@ -74,10 +74,10 @@ export default function JackpotFlask() {
         {/* 플라스크 SVG */}
         <div className="flex justify-center py-1">
           <div className="flex flex-col items-center">
-            <svg viewBox="0 0 100 290" width="88" height="255" xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 100 290" width="76" height="220" xmlns="http://www.w3.org/2000/svg">
               <defs>
                 <clipPath id="vf-clip">
-                  <rect x="44" y="20" width="12" height="166" />
+                  <rect x="44" y="13" width="12" height="173" />
                   <path d="M 44 185 Q 42 192, 28 204 Q 10 222, 10 246 Q 10 280, 50 280 Q 90 280, 90 246 Q 90 222, 72 204 Q 58 192, 56 185 Z" />
                 </clipPath>
                 <linearGradient id="vf-liq" x1="0" y1="0" x2="1" y2="0">
@@ -96,7 +96,7 @@ export default function JackpotFlask() {
               <rect x="40" y="4" width="20" height="9" rx="3" fill="#e2e8f0" stroke="#94a3b8" strokeWidth="1" />
               <rect x="43" y="6" width="8" height="3" rx="1.5" fill="white" opacity="0.55" />
 
-              <rect x="44" y="19" width="12" height="167" fill="#dbeafe" fillOpacity="0.45" />
+              <rect x="44" y="13" width="12" height="173" fill="#dbeafe" fillOpacity="0.45" />
               <path d="M 44 185 Q 42 192, 28 204 Q 10 222, 10 246 Q 10 280, 50 280 Q 90 280, 90 246 Q 90 222, 72 204 Q 58 192, 56 185 Z" fill="#dbeafe" fillOpacity="0.5" />
 
               <rect x="0" y={liquidY} width="100" height={liquidH + 6} fill="url(#vf-liq)" clipPath="url(#vf-clip)" className="transition-all duration-1000" />
@@ -115,9 +115,9 @@ export default function JackpotFlask() {
                 </>
               )}
 
-              <rect x="44" y="19" width="12" height="167" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
+              <rect x="44" y="13" width="12" height="173" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
               <path d="M 44 185 Q 42 192, 28 204 Q 10 222, 10 246 Q 10 280, 50 280 Q 90 280, 90 246 Q 90 222, 72 204 Q 58 192, 56 185" fill="none" stroke="#3b82f6" strokeWidth="2" strokeLinejoin="round" />
-              <rect x="46" y="20" width="4" height="162" fill="url(#vf-shine)" rx="2" />
+              <rect x="46" y="14" width="4" height="168" fill="url(#vf-shine)" rx="2" />
 
               {/* 상품명 — 액체 차면 내부에 표시 */}
               {prizeLabel && pct >= 30 && (
