@@ -1,5 +1,6 @@
 'use client';
 
+import { useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
@@ -18,6 +19,8 @@ interface JackpotPublic {
 }
 
 export default function WinnerTicker() {
+  const durationRef = useRef(0);
+
   const { data } = useQuery<JackpotPublic>({
     queryKey: ['jackpot-public-ticker'],
     queryFn: async () => {
@@ -30,6 +33,11 @@ export default function WinnerTicker() {
   const draws = data?.recentDraws ?? [];
   if (draws.length === 0) return null;
 
+  // 처음 데이터 로드 시 한 번만 계산 — 이후 재렌더링에서도 duration 변경 없음
+  if (durationRef.current === 0) {
+    durationRef.current = Math.max(20, draws.length * 6);
+  }
+
   const items = [...draws, ...draws];
 
   return (
@@ -39,20 +47,20 @@ export default function WinnerTicker() {
           <Trophy size={13} className="text-yellow-300" />
           감사 펀드 당첨
         </div>
-        <div className="flex-1 overflow-hidden relative">
+        <div className="flex-1 overflow-hidden">
+          {/* mr-8 on every item (no flex gap) → exact -50% loop with no 오차 */}
           <div
-            className="flex gap-8 whitespace-nowrap animate-ticker"
-            style={{ animationDuration: `${Math.max(20, draws.length * 6)}s` }}
+            className="flex whitespace-nowrap animate-ticker"
+            style={{ animationDuration: `${durationRef.current}s` }}
           >
             {items.map((d, i) => (
-              <span key={i} className="inline-flex items-center gap-1.5 text-xs text-white">
+              <span key={i} className="inline-flex items-center gap-1.5 text-xs text-white mr-8">
                 <span className="font-semibold text-yellow-200">{d.winnerMaskedName ?? '???'}</span>
                 <span className="text-blue-200">{d.prizeName ?? '상품'} 당첨</span>
                 <span className="text-blue-300">({formatPrice(d.totalAmount)})</span>
                 <span className="text-blue-300 text-[10px]">
                   {new Date(d.drawnAt).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })}
                 </span>
-                <span className="text-blue-400 mx-1">·</span>
               </span>
             ))}
           </div>

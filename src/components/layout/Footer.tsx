@@ -8,6 +8,9 @@ interface SiteConfig {
   companyName?: string; ceoName?: string; businessNumber?: string;
   address?: string; phone?: string; email?: string; footerCopyright?: string;
   logoUrl?: string;
+  privacyOfficer?: string;
+  hostingProvider?: string;
+  mailOrderNumber?: string;
 }
 
 export function Footer() {
@@ -21,10 +24,13 @@ export function Footer() {
   const ceo = cfg?.ceoName || '';
   const bizNum = cfg?.businessNumber || '';
   const address = cfg?.address || '';
-  const phone = cfg?.phone || '02-1234-5678';
-  const email = cfg?.email || 'info@labwise.co.kr';
+  const phone = cfg?.phone || '';
+  const email = cfg?.email || '';
   const logoUrl = cfg?.logoUrl;
   const copyright = cfg?.footerCopyright || `© ${new Date().getFullYear()} ${company}. All rights reserved.`;
+  const privacyOfficer = cfg?.privacyOfficer || '';
+  const hostingProvider = cfg?.hostingProvider || '';
+  const mailOrderNumber = cfg?.mailOrderNumber || '';
 
   return (
     <footer className="border-t border-gray-200 bg-gray-50">
@@ -56,11 +62,11 @@ export function Footer() {
             <h3 className="mb-3 text-sm font-semibold text-gray-900">연락처</h3>
             {phone && <p className="text-sm text-gray-500">고객센터: {phone}</p>}
             {email && <p className="text-sm text-gray-500">이메일: {email}</p>}
-            <p className="mt-2 text-sm text-gray-500">평일 09:00–18:00</p>
+            {(phone || email) && <p className="mt-2 text-sm text-gray-500">평일 09:00–18:00</p>}
           </div>
         </div>
 
-        <div className="mt-8 border-t border-gray-200 pt-6 text-xs text-gray-400 space-y-1">
+        <div className="mt-8 border-t border-gray-200 pt-6 text-xs text-gray-400 space-y-1.5">
           {logoUrl && (
             <div className="mb-4">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -73,9 +79,18 @@ export function Footer() {
               company && `상호: ${company}`,
               ceo && `대표: ${ceo}`,
               bizNum && `사업자등록번호: ${bizNum}`,
-            ].filter(Boolean).join(' | ')}
+            ].filter(Boolean).join('  |  ')}
           </p>
-          {address && <p>{address}</p>}
+          {address && <p>사업장 주소: {address}</p>}
+          <p>
+            {[
+              phone && `대표전화: ${phone}`,
+              email && `이메일: ${email}`,
+            ].filter(Boolean).join('  |  ')}
+          </p>
+          {mailOrderNumber && <p>통신판매업 신고번호: {mailOrderNumber}</p>}
+          {privacyOfficer && <p>개인정보관리책임자: {privacyOfficer}</p>}
+          {hostingProvider && <p>호스팅 제공자: {hostingProvider}</p>}
         </div>
       </div>
     </footer>

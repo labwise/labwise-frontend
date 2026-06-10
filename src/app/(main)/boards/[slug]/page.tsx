@@ -143,7 +143,7 @@ export default function BoardPage() {
                     )}
                   </td>
                   <td className="hidden md:table-cell px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
-                    {p.user?.name ?? '익명'}
+                    {p.user?.name ?? '랩와이즈'}
                   </td>
                   <td className="hidden md:table-cell px-4 py-3 text-gray-400 text-xs whitespace-nowrap">
                     {new Date(p.createdAt).toLocaleDateString('ko-KR')}
@@ -191,7 +191,7 @@ export default function BoardPage() {
             </div>
             <div className="p-5">
               <p className="mb-4 text-xs text-gray-400">
-                {selectedPost.user?.name ?? '익명'} · {formatDateTime(selectedPost.createdAt)} · 조회 {selectedPost.viewCount}
+                {selectedPost.user?.name ?? '랩와이즈'} · {formatDateTime(selectedPost.createdAt)} · 조회 {selectedPost.viewCount}
               </p>
               <div
                 className="rich-content prose prose-sm max-w-none text-gray-700 mb-6"

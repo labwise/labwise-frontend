@@ -17,6 +17,9 @@ interface SiteConfig {
   companyName?: string; ceoName?: string; businessNumber?: string;
   address?: string; phone?: string; email?: string; footerCopyright?: string;
   bankName?: string; bankAccount?: string; bankAccountHolder?: string;
+  privacyOfficer?: string;
+  hostingProvider?: string;
+  mailOrderNumber?: string;
 }
 
 const DEFAULTS: SiteConfig = {
@@ -361,6 +364,26 @@ export default function SiteSettingsPage() {
               <label className="mb-1 block text-xs font-medium text-gray-700">푸터 저작권 문구</label>
               <input value={cfg.footerCopyright ?? ''} onChange={(e) => set('footerCopyright', e.target.value)}
                 placeholder="© 2026 랩와이즈. All rights reserved." className={inputCls} />
+            </div>
+          </div>
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-700">전자상거래 법적 필수 정보</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">통신판매업 신고번호</label>
+                <input value={cfg.mailOrderNumber ?? ''} onChange={(e) => set('mailOrderNumber', e.target.value)}
+                  placeholder="제0000-서울강남-00000호" className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">개인정보관리책임자</label>
+                <input value={cfg.privacyOfficer ?? ''} onChange={(e) => set('privacyOfficer', e.target.value)}
+                  placeholder="홍길동 (privacy@labwise.co.kr)" className={inputCls} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">호스팅제공자</label>
+                <input value={cfg.hostingProvider ?? ''} onChange={(e) => set('hostingProvider', e.target.value)}
+                  placeholder="Amazon Web Services Inc." className={inputCls} />
+              </div>
             </div>
           </div>
           <div className="mt-4 border-t border-gray-100 pt-4">
