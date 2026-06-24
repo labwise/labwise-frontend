@@ -2,14 +2,15 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingCart, User, Search, LogOut, ChevronDown } from 'lucide-react';
+import { ShoppingCart, User, Search, LogOut, ChevronDown, Building2 } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useCartStore } from '@/store/cart.store';
+import { useInstitutionStore } from '@/store/institution.store';
 import { formatWise } from '@/lib/utils';
 import { api } from '@/lib/api';
 import { Logo } from '@/components/Logo';
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface Category {
   id: string;
@@ -25,7 +26,33 @@ export function Header() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { items } = useCartStore();
+  const { mode, institution, switchMode, fetchInstitution, reset: resetInstitution } = useInstitutionStore();
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchInstitution();
+    } else {
+      resetInstitution();
+    }
+  }, [user?.id]);
+
+  const handleModeSwitch = async () => {
+    if (!user) return;
+    setSwitching(true);
+    try {
+      const next = mode === 'personal' ? 'institution' : 'personal';
+      await switchMode(next);
+      if (next === 'institution' && !institution) {
+        router.push('/institution/register');
+      }
+    } catch {
+      router.push('/institution/register');
+    } finally {
+      setSwitching(false);
+    }
+  };
 
   const totalItems = items.reduce((s, i) => s + i.quantity, 0);
 
@@ -78,6 +105,21 @@ export function Header() {
 
             {user ? (
               <div className="flex items-center gap-2">
+                {/* 모드 전환 스위치 */}
+                <button
+                  onClick={handleModeSwitch}
+                  disabled={switching}
+                  title={mode === 'personal' ? '기관 모드로 전환' : '개인 모드로 전환'}
+                  className={`hidden md:flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                    mode === 'institution'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      : 'border border-gray-300 text-gray-600 hover:border-indigo-400 hover:text-indigo-600'
+                  } ${switching ? 'opacity-60 cursor-not-allowed' : ''}`}
+                >
+                  <Building2 className="h-3.5 w-3.5" />
+                  {mode === 'institution' ? (institution?.name ?? '기관 모드') : '기관 전환'}
+                </button>
+
                 <Link
                   href="/my/inquiry"
                   className="hidden text-sm text-gray-600 hover:text-blue-600 md:block"
@@ -90,7 +132,11 @@ export function Header() {
                 >
                   <User className="h-4 w-4" />
                   <span>{user.name}</span>
-                  <span className="text-blue-600">({formatWise(user.pointBalance)})</span>
+                  <span className={mode === 'institution' ? 'text-indigo-600' : 'text-blue-600'}>
+                    ({mode === 'institution'
+                      ? `기관 ${formatWise(institution?.pointBalance ?? 0)}`
+                      : formatWise(user.pointBalance)})
+                  </span>
                 </Link>
                 <button onClick={handleLogout} className="p-2 text-gray-400 hover:text-red-500">
                   <LogOut className="h-5 w-5" />
