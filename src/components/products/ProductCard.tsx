@@ -1,9 +1,11 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShoppingCart } from 'lucide-react';
+import { Heart, ShoppingCart } from 'lucide-react';
 import type { Product } from '@/types';
 import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '@/store/cart.store';
+import { useFavoriteStore } from '@/store/favorite.store';
+import { useAuthStore } from '@/store/auth.store';
 import { useState } from 'react';
 
 interface Props {
@@ -12,7 +14,22 @@ interface Props {
 
 export function ProductCard({ product }: Props) {
   const { addItem } = useCartStore();
+  const { toggle, isFavorited } = useFavoriteStore();
+  const { user } = useAuthStore();
   const [adding, setAdding] = useState(false);
+  const [togglingFav, setTogglingFav] = useState(false);
+  const favorited = isFavorited(product.id);
+
+  const handleFavorite = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user || togglingFav) return;
+    setTogglingFav(true);
+    try {
+      await toggle(product.id);
+    } finally {
+      setTogglingFav(false);
+    }
+  };
 
   const primaryImage = product.images?.find((img) => img.isPrimary) ?? product.images?.[0];
   const price = product.effectivePrice ?? product.price;
@@ -57,6 +74,18 @@ export function ProductCard({ product }: Props) {
           <div className="absolute inset-0 flex items-center justify-center bg-black/40">
             <span className="rounded bg-white px-2 py-1 text-xs font-semibold text-gray-700">품절</span>
           </div>
+        )}
+        {user && (
+          <button
+            onClick={handleFavorite}
+            disabled={togglingFav}
+            className="absolute right-2 top-2 rounded-full bg-white/80 p-1.5 shadow-sm backdrop-blur-sm transition hover:bg-white"
+            title={favorited ? '즐겨찾기 해제' : '즐겨찾기 추가'}
+          >
+            <Heart
+              className={`h-4 w-4 transition-colors ${favorited ? 'fill-red-500 text-red-500' : 'text-gray-400'}`}
+            />
+          </button>
         )}
       </div>
 

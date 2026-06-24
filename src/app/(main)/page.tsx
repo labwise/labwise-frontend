@@ -1,11 +1,14 @@
 import { Package, Shield, Truck } from 'lucide-react';
 import { FeaturedProducts } from '@/components/FeaturedProducts';
 import { HeroSection } from '@/components/HeroSection';
+import { PersonalizedSection } from '@/components/PersonalizedSection';
 
 export default function HomePage() {
   return (
     <div>
       <HeroSection />
+
+      <PersonalizedSection />
 
       <FeaturedProducts />
 
