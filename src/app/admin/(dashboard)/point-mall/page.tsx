@@ -12,12 +12,25 @@ interface PointProduct {
   requiredPoints: number; referencePrice?: number;
   stockQuantity: number; isActive: boolean;
   description?: string; externalUrl?: string;
+  mallType: 'personal' | 'institution' | 'both';
 }
 
 const EMPTY = {
   name: '', brand: '', wiseMallCategoryId: '',
   requiredPoints: '', referencePrice: '', stockQuantity: '0',
   description: '', externalUrl: '', isActive: true,
+  mallType: 'personal' as 'personal' | 'institution' | 'both',
+};
+
+const MALL_TYPE_LABEL: Record<string, string> = {
+  personal: '일반 와이즈몰',
+  institution: '기관몰',
+  both: '일반 + 기관',
+};
+const MALL_TYPE_COLOR: Record<string, string> = {
+  personal: 'bg-blue-100 text-blue-700',
+  institution: 'bg-emerald-100 text-emerald-700',
+  both: 'bg-purple-100 text-purple-700',
 };
 
 export default function PointMallProductsPage() {
@@ -30,6 +43,7 @@ export default function PointMallProductsPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [tab, setTab] = useState<'all' | 'personal' | 'institution'>('all');
 
   function load() {
     setLoading(true);
@@ -63,9 +77,17 @@ export default function PointMallProductsPage() {
       description: p.description ?? '',
       externalUrl: p.externalUrl ?? '',
       isActive: p.isActive,
+      mallType: p.mallType ?? 'personal',
     });
     setError(''); setShowForm(true);
   }
+
+  const filteredProducts = products.filter((p) => {
+    if (tab === 'all') return true;
+    if (tab === 'personal') return p.mallType === 'personal' || p.mallType === 'both';
+    if (tab === 'institution') return p.mallType === 'institution' || p.mallType === 'both';
+    return true;
+  });
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -105,10 +127,10 @@ export default function PointMallProductsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">와이즈몰 상품 관리</h1>
-          <p className="mt-1 text-sm text-gray-500">삼성, LG 등 브랜드 제품을 와이즈 포인트로 교환할 수 있도록 등록합니다.</p>
+          <h1 className="text-xl font-bold text-gray-900">포인트몰 상품 관리</h1>
+          <p className="mt-1 text-sm text-gray-500">와이즈 포인트로 교환할 수 있는 상품을 관리합니다.</p>
         </div>
         <div className="flex gap-2">
           <Link href="/admin/wisemall-categories"
@@ -124,6 +146,25 @@ export default function PointMallProductsPage() {
             <Plus size={15} /> 상품 등록
           </button>
         </div>
+      </div>
+
+      {/* 몰 탭 */}
+      <div className="mb-4 flex gap-1 border-b border-gray-200">
+        {([['all', '전체'], ['personal', '일반 와이즈몰'], ['institution', '기관몰']] as const).map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              tab === key
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}>
+            {label}
+            <span className="ml-1.5 rounded-full bg-gray-100 px-1.5 py-0.5 text-xs text-gray-500">
+              {key === 'all' ? products.length
+                : key === 'personal' ? products.filter(p => p.mallType === 'personal' || p.mallType === 'both').length
+                : products.filter(p => p.mallType === 'institution' || p.mallType === 'both').length}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* 등록/수정 모달 */}
@@ -191,6 +232,21 @@ export default function PointMallProductsPage() {
                   className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
               </div>
 
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-700">노출 몰 *</label>
+                <div className="flex gap-3">
+                  {(['personal', 'institution', 'both'] as const).map((v) => (
+                    <label key={v} className="flex cursor-pointer items-center gap-1.5">
+                      <input type="radio" name="mallType" value={v}
+                        checked={form.mallType === v}
+                        onChange={() => f('mallType', v)}
+                        className="accent-blue-600" />
+                      <span className="text-sm text-gray-700">{MALL_TYPE_LABEL[v]}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <label className="flex cursor-pointer items-center gap-2">
                 <input type="checkbox" checked={form.isActive} onChange={(e) => f('isActive', e.target.checked)} className="h-4 w-4 accent-blue-600" />
                 <span className="text-sm text-gray-700">판매 활성화</span>
@@ -219,17 +275,18 @@ export default function PointMallProductsPage() {
               <th className="px-4 py-3 text-right font-medium text-gray-500">필요 와이즈</th>
               <th className="px-4 py-3 text-right font-medium text-gray-500">재고</th>
               <th className="px-4 py-3 text-center font-medium text-gray-500">링크</th>
+              <th className="px-4 py-3 text-center font-medium text-gray-500">노출 몰</th>
               <th className="px-4 py-3 text-center font-medium text-gray-500">상태</th>
               <th className="px-4 py-3 text-center font-medium text-gray-500">관리</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="py-10 text-center text-gray-400">불러오는 중...</td></tr>
-            ) : products.length === 0 ? (
-              <tr><td colSpan={8} className="py-10 text-center text-gray-400">등록된 상품이 없습니다.</td></tr>
+              <tr><td colSpan={9} className="py-10 text-center text-gray-400">불러오는 중...</td></tr>
+            ) : filteredProducts.length === 0 ? (
+              <tr><td colSpan={9} className="py-10 text-center text-gray-400">등록된 상품이 없습니다.</td></tr>
             ) : (
-              products.map((p) => (
+              filteredProducts.map((p) => (
                 <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-4 py-3 font-medium text-gray-900">{p.name}</td>
                   <td className="px-4 py-3 text-gray-500">{p.brand ?? '-'}</td>
@@ -243,6 +300,11 @@ export default function PointMallProductsPage() {
                         <ExternalLink size={12} /> 링크
                       </a>
                     ) : <span className="text-xs text-gray-300">없음</span>}
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${MALL_TYPE_COLOR[p.mallType ?? 'personal']}`}>
+                      {MALL_TYPE_LABEL[p.mallType ?? 'personal']}
+                    </span>
                   </td>
                   <td className="px-4 py-3 text-center">
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
