@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Heart, Clock, ShoppingCart, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Heart, Clock, ShoppingCart, ArrowRight, FileText } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
 import { useFavoriteStore } from '@/store/favorite.store';
 import { useCartStore } from '@/store/cart.store';
@@ -105,6 +106,7 @@ function RecentMiniCard({ item }: { item: RecentProduct }) {
 }
 
 export function PersonalizedSection() {
+  const router = useRouter();
   const { user } = useAuthStore();
   const { items: favorites, fetch: fetchFavorites, loaded } = useFavoriteStore();
   const { addItem } = useCartStore();
@@ -164,9 +166,20 @@ export function PersonalizedSection() {
             </button>
           </div>
           {tab === 'favorites' && favProducts.length > 0 && (
-            <Link href="/my/favorites" className="flex items-center gap-1 text-sm text-gray-400 hover:text-blue-600">
-              전체보기 <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const prefill = encodeURIComponent(JSON.stringify(favProducts.slice(0, 10)));
+                  router.push(`/estimates/new?prefill=${prefill}`);
+                }}
+                className="flex items-center gap-1 rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-1.5 text-xs font-medium text-blue-600 hover:bg-blue-100"
+              >
+                <FileText className="h-3.5 w-3.5" /> 견적서 만들기
+              </button>
+              <Link href="/my/favorites" className="flex items-center gap-1 text-sm text-gray-400 hover:text-blue-600">
+                전체보기 <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
           )}
         </div>
 
