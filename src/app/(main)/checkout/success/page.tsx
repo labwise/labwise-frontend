@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle, Clock, Building2, Copy } from 'lucide-react';
+import { CheckCircle, Clock, Building2, Copy, FileText, Receipt } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useCartStore } from '@/store/cart.store';
 import { formatPrice } from '@/lib/utils';
@@ -21,6 +21,7 @@ function SuccessContent() {
   const [virtualAccount, setVirtualAccount] = useState<VirtualAccount | null>(null);
   const [amount, setAmount] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     const paymentKey = searchParams.get('paymentKey');
@@ -69,6 +70,8 @@ function SuccessContent() {
         sessionStorage.removeItem(storedKey);
         clearCart();
         const payment = data.payment ?? data;
+        if (data.order?.id) setOrderId(data.order.id);
+        else if (data.orderId) setOrderId(data.orderId);
         if (payment.virtualAccountNumber) {
           setVirtualAccount({
             virtualAccountNumber: payment.virtualAccountNumber,
@@ -248,14 +251,35 @@ function SuccessContent() {
   const cardAmount = Number(searchParams.get('amount') ?? 0);
   const donationAmt = Math.floor(cardAmount * 0.015);
   return (
-    <div className="flex min-h-[50vh] items-center justify-center">
-      <div className="rounded-xl border border-gray-200 bg-white p-8 text-center">
+    <div className="flex min-h-[50vh] items-center justify-center px-4">
+      <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
         <CheckCircle className="mx-auto mb-4 h-16 w-16 text-green-500" />
         <h1 className="mb-2 text-2xl font-bold text-gray-900">결제가 완료되었습니다!</h1>
         <p className="mb-6 text-gray-500">주문이 정상적으로 접수되었습니다.</p>
         {donationAmt > 0 && (
-          <div className="mb-6 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+          <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
             🌱 이 구매로 <span className="font-semibold">{formatPrice(donationAmt)}</span>이 기부 적립됩니다
+          </div>
+        )}
+        {orderId && (
+          <div className="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4">
+            <p className="mb-3 text-xs font-medium text-gray-500">구매 서류 다운로드</p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => window.open(`/print/statement/${orderId}`, '_blank')}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <FileText className="h-4 w-4 text-blue-500" />
+                거래명세서
+              </button>
+              <button
+                onClick={() => window.open(`/print/receipt/${orderId}`, '_blank')}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Receipt className="h-4 w-4 text-green-500" />
+                영수증
+              </button>
+            </div>
           </div>
         )}
         <div className="flex justify-center gap-3">

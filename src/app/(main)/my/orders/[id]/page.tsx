@@ -218,13 +218,22 @@ export default function OrderDetailPage() {
               </a>
             )}
             {order.status !== 'PENDING' && order.status !== 'CANCELLED' && (
-              <button
-                onClick={() => window.open(`/print/statement/${order.id}`, '_blank')}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                <FileText className="h-4 w-4" />
-                거래명세서 출력
-              </button>
+              <>
+                <button
+                  onClick={() => window.open(`/print/statement/${order.id}`, '_blank')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <FileText className="h-4 w-4 text-blue-500" />
+                  거래명세서
+                </button>
+                <button
+                  onClick={() => window.open(`/print/receipt/${order.id}`, '_blank')}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  <Receipt className="h-4 w-4 text-green-500" />
+                  영수증
+                </button>
+              </>
             )}
           </div>
         )}
