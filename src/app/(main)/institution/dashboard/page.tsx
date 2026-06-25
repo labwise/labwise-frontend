@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Users, CheckCircle, XCircle, Coins } from 'lucide-react';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { useInstitutionStore } from '@/store/institution.store';
 import { formatWise } from '@/lib/utils';

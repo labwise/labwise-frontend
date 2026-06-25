@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Search, AlertCircle } from 'lucide-react';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 import { useInstitutionStore } from '@/store/institution.store';
 
 const INSTITUTION_DOMAINS = ['ac.kr', 're.kr', 'go.kr', 'edu.kr', 'or.kr'];
