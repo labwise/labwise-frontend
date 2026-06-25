@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import adminApi from '@/lib/admin-api';
-import { Search, Trophy, UserX, Clock } from 'lucide-react';
+import { Search, Trophy, UserX, Clock, Building2 } from 'lucide-react';
 
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: '정상', DORMANT: '휴면', SUSPENDED: '정지', WITHDRAWN: '탈퇴',
@@ -22,6 +22,7 @@ interface User {
   status: string;
   pointBalance: number;
   createdAt: string;
+  activeInstitutionId?: string;
   group?: { name: string };
 }
 
@@ -33,6 +34,7 @@ export default function AdminUsersPage() {
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('');
   const [hasPurchase, setHasPurchase] = useState('');
+  const [institutionOnly, setInstitutionOnly] = useState('');
   const [loading, setLoading] = useState(true);
 
   const limit = 20;
@@ -47,6 +49,7 @@ export default function AdminUsersPage() {
           search: query || undefined,
           status: status || undefined,
           hasPurchase: hasPurchase || undefined,
+          institutionOnly: institutionOnly || undefined,
         },
       })
       .then(({ data }) => {
@@ -54,7 +57,7 @@ export default function AdminUsersPage() {
         setTotal(data.total ?? data.length);
       })
       .finally(() => setLoading(false));
-  }, [page, query, status, hasPurchase]);
+  }, [page, query, status, hasPurchase, institutionOnly]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -116,6 +119,14 @@ export default function AdminUsersPage() {
           <option value="">전체 회원</option>
           <option value="true">구매 이력 있음</option>
         </select>
+        <select
+          value={institutionOnly}
+          onChange={(e) => { setInstitutionOnly(e.target.value); setPage(1); }}
+          className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none"
+        >
+          <option value="">회원 유형 전체</option>
+          <option value="true">기관 회원만</option>
+        </select>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
@@ -123,6 +134,7 @@ export default function AdminUsersPage() {
           <thead>
             <tr className="bg-gray-50 border-b border-gray-100">
               <th className="text-left px-4 py-3 text-gray-500 font-medium">회원</th>
+              <th className="text-left px-4 py-3 text-gray-500 font-medium">유형</th>
               <th className="text-left px-4 py-3 text-gray-500 font-medium">그룹</th>
               <th className="text-right px-4 py-3 text-gray-500 font-medium">와이즈</th>
               <th className="text-center px-4 py-3 text-gray-500 font-medium">상태</th>
@@ -132,15 +144,25 @@ export default function AdminUsersPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">불러오는 중...</td></tr>
+              <tr><td colSpan={7} className="text-center py-10 text-gray-400">불러오는 중...</td></tr>
             ) : users.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-10 text-gray-400">회원이 없습니다</td></tr>
+              <tr><td colSpan={7} className="text-center py-10 text-gray-400">회원이 없습니다</td></tr>
             ) : (
               users.map((u) => (
                 <tr key={u.id} className="border-b border-gray-50 hover:bg-gray-50">
                   <td className="px-4 py-3">
                     <p className="font-medium text-gray-900">{u.name}</p>
                     <p className="text-xs text-gray-400">{u.email}</p>
+                  </td>
+                  <td className="px-4 py-3">
+                    {u.activeInstitutionId ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                        <Building2 size={11} />
+                        기관
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">일반</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-gray-500">{u.group?.name ?? '일반'}</td>
                   <td className="px-4 py-3 text-right font-medium">{(u.pointBalance ?? 0).toLocaleString()}W</td>

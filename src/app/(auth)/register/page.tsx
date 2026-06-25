@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, User, Building2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { Input } from '@/components/ui/Input';
@@ -67,6 +67,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const { setAuth } = useAuthStore();
   const [error, setError] = useState('');
+  const [memberType, setMemberType] = useState<'personal' | 'institution'>('personal');
   const [otpSent, setOtpSent] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
@@ -161,7 +162,7 @@ export default function RegisterPage() {
         addressDetail: data.addressDetail,
       });
       setAuth(res.user, res.accessToken, res.refreshToken);
-      router.push('/');
+      router.push(memberType === 'institution' ? '/institution/register' : '/');
     } catch (err: any) {
       setError(err.response?.data?.message ?? '회원가입에 실패했습니다.');
     }
@@ -178,6 +179,52 @@ export default function RegisterPage() {
         </div>
 
         <div className="rounded-xl bg-white p-8 shadow-sm border border-gray-200">
+          {/* 회원 유형 선택 */}
+          <div className="mb-6">
+            <p className="mb-2 text-sm font-medium text-gray-700">회원 유형 선택</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setMemberType('personal')}
+                className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-4 py-3 transition-colors ${
+                  memberType === 'personal'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <User className={`h-5 w-5 ${memberType === 'personal' ? 'text-blue-600' : 'text-gray-400'}`} />
+                <span className={`text-sm font-semibold ${memberType === 'personal' ? 'text-blue-700' : 'text-gray-600'}`}>
+                  일반 회원
+                </span>
+                <span className="text-xs text-gray-400 text-center leading-tight">
+                  개인 구매 및 포인트 적립
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMemberType('institution')}
+                className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-4 py-3 transition-colors ${
+                  memberType === 'institution'
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <Building2 className={`h-5 w-5 ${memberType === 'institution' ? 'text-indigo-600' : 'text-gray-400'}`} />
+                <span className={`text-sm font-semibold ${memberType === 'institution' ? 'text-indigo-700' : 'text-gray-600'}`}>
+                  기관 회원
+                </span>
+                <span className="text-xs text-gray-400 text-center leading-tight">
+                  연구기관·학교 구매 관리
+                </span>
+              </button>
+            </div>
+            {memberType === 'institution' && (
+              <p className="mt-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-600">
+                가입 완료 후 기관 등록 또는 참여 신청 페이지로 이동합니다.
+              </p>
+            )}
+          </div>
+
           {hasSocial && (
             <>
               <div className="space-y-2 mb-6">

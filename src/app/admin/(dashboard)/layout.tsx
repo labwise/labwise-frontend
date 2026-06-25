@@ -30,6 +30,7 @@ import {
   FolderCog,
   Settings,
   FileText,
+  Building2,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -70,6 +71,7 @@ const navGroups: NavGroup[] = [
         ],
       },
       { href: '/admin/groups', label: '그룹 관리', icon: Layers },
+      { href: '/admin/institutions', label: '기관 관리', icon: Building2 },
     ],
   },
   {
