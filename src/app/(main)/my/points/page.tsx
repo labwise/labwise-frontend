@@ -48,7 +48,7 @@ export default function PointsPage() {
     enabled: !isInstitution,
   });
 
-  const { data: institutionHistory = [], isLoading: institutionLoading } = useQuery<InstitutionLedger[]>({
+  const { data: institutionData, isLoading: institutionLoading } = useQuery<{ balance: number; ledger: InstitutionLedger[] }>({
     queryKey: ['institution-point-history'],
     queryFn: async () => {
       const { data } = await api.get('/institution/points');
@@ -56,6 +56,8 @@ export default function PointsPage() {
     },
     enabled: isInstitution,
   });
+  const institutionHistory = institutionData?.ledger ?? [];
+  const institutionBalance = institutionData?.balance ?? institution?.pointBalance ?? 0;
 
   const isLoading = isInstitution ? institutionLoading : personalLoading;
 
@@ -67,7 +69,7 @@ export default function PointsPage() {
             <Building2 className="h-4 w-4" />
             {institution?.name} 기관 와이즈
           </div>
-          <span className="text-xl font-bold text-indigo-600">{formatWise(institution?.pointBalance ?? 0)}</span>
+          <span className="text-xl font-bold text-indigo-600">{formatWise(institutionBalance)}</span>
         </div>
 
         {isLoading ? (

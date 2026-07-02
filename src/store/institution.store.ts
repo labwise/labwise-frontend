@@ -48,7 +48,7 @@ export const useInstitutionStore = create<InstitutionState>()(
     }),
     {
       name: 'labwise-institution',
-      partialize: (state) => ({ mode: state.mode }),
+      partialize: (state) => ({ mode: state.mode, institution: state.institution }),
     },
   ),
 );
