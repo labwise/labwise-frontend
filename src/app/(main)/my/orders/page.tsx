@@ -6,7 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { Order } from '@/types';
 import { formatPrice, formatDateTime } from '@/lib/utils';
-import { X, CreditCard } from 'lucide-react';
+import { X, CreditCard, Building2, User } from 'lucide-react';
+import { useInstitutionStore } from '@/store/institution.store';
 
 const statusLabels: Record<string, { label: string; color: string }> = {
   PENDING:   { label: '결제 대기', color: 'text-yellow-600 bg-yellow-50' },
@@ -92,11 +93,13 @@ function BankAccountModal({ order, cfg, onClose }: BankModalProps) {
 export default function OrdersPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('ALL');
   const [bankModalOrder, setBankModalOrder] = useState<Order | null>(null);
+  const { mode, institution } = useInstitutionStore();
+  const isInstitution = mode === 'institution';
 
   const { data: orders = [], isLoading } = useQuery<Order[]>({
-    queryKey: ['my-orders'],
+    queryKey: ['my-orders', mode],
     queryFn: async () => {
-      const { data } = await api.get('/orders');
+      const { data } = await api.get('/orders', { params: { mode } });
       return data;
     },
   });
@@ -132,6 +135,16 @@ export default function OrdersPage() {
 
   return (
     <div>
+      {/* 모드 배너 */}
+      <div className={`mb-4 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium ${
+        isInstitution ? 'bg-indigo-50 text-indigo-700' : 'bg-blue-50 text-blue-700'
+      }`}>
+        {isInstitution
+          ? <><Building2 className="h-4 w-4" /> 기관 주문내역 — {institution?.name}</>
+          : <><User className="h-4 w-4" /> 개인 주문내역</>
+        }
+      </div>
+
       {/* 상태별 탭 */}
       <div className="mb-4 overflow-x-auto">
         <div className="flex min-w-max gap-1 rounded-xl bg-gray-100 p-1">

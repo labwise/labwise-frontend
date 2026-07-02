@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { Plus, ChevronDown, ChevronUp, MessageCircle, CheckCircle, Clock } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, MessageCircle, CheckCircle, Clock, Building2, User } from 'lucide-react';
+import { useInstitutionStore } from '@/store/institution.store';
 
 interface Reply {
   id: string;
@@ -23,9 +24,14 @@ interface Inquiry {
 
 export default function InquiryPage() {
   const qc = useQueryClient();
+  const { mode, institution } = useInstitutionStore();
+  const isInstitution = mode === 'institution';
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', content: '' });
   const [openId, setOpenId] = useState<string | null>(null);
+
+  // 기관 모드 전환 시 폼 초기화
+  const institutionPrefix = isInstitution && institution ? `[${institution.name}] ` : '';
 
   const { data, isLoading } = useQuery<{ items: Inquiry[]; total: number }>({
     queryKey: ['my-inquiries'],
@@ -36,7 +42,10 @@ export default function InquiryPage() {
   });
 
   const create = useMutation({
-    mutationFn: () => api.post('/boards/inquiries', form),
+    mutationFn: () => api.post('/boards/inquiries', {
+      ...form,
+      title: institutionPrefix + form.title,
+    }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-inquiries'] });
       setForm({ title: '', content: '' });
@@ -48,6 +57,16 @@ export default function InquiryPage() {
 
   return (
     <div>
+      {/* 모드 배너 */}
+      <div className={`mb-4 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium ${
+        isInstitution ? 'bg-indigo-50 text-indigo-700' : 'bg-blue-50 text-blue-700'
+      }`}>
+        {isInstitution
+          ? <><Building2 className="h-4 w-4" /> 기관 문의 — {institution?.name} 이름으로 접수됩니다</>
+          : <><User className="h-4 w-4" /> 개인 문의</>
+        }
+      </div>
+
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-bold text-gray-900">1:1 문의</h2>
         <button
@@ -63,6 +82,12 @@ export default function InquiryPage() {
         <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 p-5">
           <h3 className="mb-4 font-semibold text-gray-800">새 문의 작성</h3>
           <div className="space-y-3">
+            {isInstitution && institution && (
+              <div className="flex items-center gap-1.5 rounded-lg bg-indigo-100 px-3 py-1.5 text-xs text-indigo-700">
+                <Building2 className="h-3.5 w-3.5" />
+                제목에 <strong>[{institution.name}]</strong> 가 자동으로 추가됩니다
+              </div>
+            )}
             <input
               type="text"
               placeholder="문의 제목"

@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Star, Pencil, Trash2, X, Check } from 'lucide-react';
+import { Plus, Star, Pencil, Trash2, X, Check, Building2, User } from 'lucide-react';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
+import { useInstitutionStore } from '@/store/institution.store';
 
 interface Address {
   id: string;
@@ -52,6 +53,9 @@ function openDaumPostcode(onSelect: (postcode: string, address: string) => void)
 }
 
 export default function AddressesPage() {
+  const { mode, institution } = useInstitutionStore();
+  const isInstitution = mode === 'institution';
+
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -61,8 +65,9 @@ export default function AddressesPage() {
   const [error, setError] = useState('');
 
   const fetchAddresses = async () => {
+    setLoading(true);
     try {
-      const { data } = await api.get('/shipping-addresses');
+      const { data } = await api.get('/shipping-addresses', { params: { mode } });
       setAddresses(data);
     } catch {
       setAddresses([]);
@@ -71,7 +76,7 @@ export default function AddressesPage() {
     }
   };
 
-  useEffect(() => { fetchAddresses(); }, []);
+  useEffect(() => { fetchAddresses(); }, [mode]);
 
   const openNew = () => {
     setEditingId(null);
@@ -142,6 +147,16 @@ export default function AddressesPage() {
 
   return (
     <div>
+      {/* 모드 배너 */}
+      <div className={`mb-4 flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium ${
+        isInstitution ? 'bg-indigo-50 text-indigo-700' : 'bg-blue-50 text-blue-700'
+      }`}>
+        {isInstitution
+          ? <><Building2 className="h-4 w-4" /> 기관 배송지 — {institution?.name}</>
+          : <><User className="h-4 w-4" /> 개인 배송지</>
+        }
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-gray-900">배송지 관리</h2>
         <Button size="sm" onClick={openNew}>
