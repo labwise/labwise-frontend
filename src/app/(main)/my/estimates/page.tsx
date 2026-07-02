@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, ExternalLink, Copy, Plus, CreditCard, Building2, User } from 'lucide-react';
+import { FileText, ExternalLink, Copy, Plus, CreditCard, Building2, User, Trash2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 import { Suspense } from 'react';
@@ -19,7 +19,7 @@ interface EstimateItem {
 interface Estimate {
   id: string;
   estimateNumber: string;
-  buyerCompany: string;
+  buyerCompany?: string;
   buyerContact?: string;
   buyerPhone?: string;
   items: EstimateItem[];
@@ -40,11 +40,89 @@ const STATUS = {
   paid:   { label: '결제완료', color: 'bg-green-100 text-green-700' },
 };
 
-function EstimateList({ estimates, onClone }: { estimates: Estimate[]; onClone: (id: string) => void }) {
+type Tab = 'personal' | 'institution';
+
+function EstimateCard({
+  est,
+  onClone,
+  onDelete,
+}: {
+  est: Estimate;
+  onClone: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
   const router = useRouter();
+  const st = STATUS[est.status] ?? STATUS.issued;
+
+  return (
+    <div className="rounded-xl border border-gray-200 bg-white p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-semibold text-gray-900">{est.estimateNumber}</span>
+            <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.color}`}>{st.label}</span>
+            <span className="text-xs text-gray-400">
+              {new Date(est.createdAt).toLocaleDateString('ko-KR')}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-sm text-gray-600">{summary(est.items)}</p>
+          {est.buyerCompany && (
+            <p className="text-xs text-gray-400">{est.buyerCompany}</p>
+          )}
+        </div>
+        <div className="flex-shrink-0 text-right">
+          <p className="font-bold text-blue-600">{formatPrice(est.totalAmount)}</p>
+        </div>
+      </div>
+
+      <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-50 pt-3">
+        <button
+          onClick={() => window.open(`/print/estimate/${est.id}`, '_blank')}
+          className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+        >
+          <ExternalLink className="h-3.5 w-3.5" /> 견적서 보기
+        </button>
+        <button
+          onClick={() => onClone(est.id)}
+          className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+        >
+          <Copy className="h-3.5 w-3.5" /> 복제
+        </button>
+        {est.status === 'issued' && (
+          <button
+            onClick={() => router.push(`/checkout?estimateId=${est.id}`)}
+            className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
+          >
+            <CreditCard className="h-3.5 w-3.5" /> 결제하기
+          </button>
+        )}
+        {est.status === 'issued' && (
+          <button
+            onClick={() => onDelete(est.id)}
+            className="ml-auto flex items-center gap-1 rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> 삭제
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function EstimateTabContent({ tab }: { tab: Tab }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const highlight = searchParams.get('highlight');
   const highlightRef = useRef<HTMLDivElement>(null);
+
+  const { data: estimates = [], isLoading } = useQuery<Estimate[]>({
+    queryKey: ['my-estimates', tab],
+    queryFn: async () => {
+      const { data } = await api.get('/estimates/my', { params: { mode: tab } });
+      return data;
+    },
+  });
 
   useEffect(() => {
     if (highlight && highlightRef.current) {
@@ -52,11 +130,41 @@ function EstimateList({ estimates, onClone }: { estimates: Estimate[]; onClone: 
     }
   }, [highlight, estimates]);
 
+  async function handleClone(id: string) {
+    try {
+      const { data } = await api.post(`/estimates/${id}/clone`);
+      await queryClient.invalidateQueries({ queryKey: ['my-estimates'] });
+      router.push(`/my/estimates?highlight=${data.id}`);
+    } catch {
+      alert('복제에 실패했습니다.');
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm('견적서를 삭제하시겠습니까?')) return;
+    try {
+      await api.delete(`/estimates/${id}`);
+      await queryClient.invalidateQueries({ queryKey: ['my-estimates'] });
+    } catch {
+      alert('삭제에 실패했습니다.');
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map((i) => <div key={i} className="h-28 animate-pulse rounded-xl bg-gray-100" />)}
+      </div>
+    );
+  }
+
   if (estimates.length === 0) {
     return (
       <div className="rounded-xl border border-gray-200 bg-white py-16 text-center">
         <FileText className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-        <p className="text-gray-500">발행된 견적서가 없습니다.</p>
+        <p className="text-gray-500">
+          {tab === 'personal' ? '개인 견적서가 없습니다.' : '기관 견적서가 없습니다.'}
+        </p>
         <button
           onClick={() => router.push('/estimates/new')}
           className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
@@ -69,128 +177,74 @@ function EstimateList({ estimates, onClone }: { estimates: Estimate[]; onClone: 
 
   return (
     <div className="space-y-3">
-      {estimates.map((est) => {
-        const isHighlight = est.id === highlight;
-        const st = STATUS[est.status] ?? STATUS.issued;
-        return (
-          <div
-            key={est.id}
-            ref={isHighlight ? highlightRef : undefined}
-            className={`rounded-xl border bg-white p-5 transition-all ${
-              isHighlight ? 'border-blue-400 ring-2 ring-blue-200' : 'border-gray-200'
-            }`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-sm font-semibold text-gray-900">{est.estimateNumber}</span>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.color}`}>{st.label}</span>
-                  <span className="text-xs text-gray-400">
-                    {new Date(est.createdAt).toLocaleDateString('ko-KR')}
-                  </span>
-                </div>
-                <p className="mt-1 truncate text-sm text-gray-600">{summary(est.items)}</p>
-                <p className="text-xs text-gray-400">{est.buyerCompany}</p>
-              </div>
-              <div className="flex-shrink-0 text-right">
-                <p className="font-bold text-blue-600">{formatPrice(est.totalAmount)}</p>
-              </div>
-            </div>
-
-            <div className="mt-3 flex flex-wrap gap-2 border-t border-gray-50 pt-3">
-              <button
-                onClick={() => window.open(`/print/estimate/${est.id}`, '_blank')}
-                className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-              >
-                <ExternalLink className="h-3.5 w-3.5" /> 견적서 보기
-              </button>
-              <button
-                onClick={() => onClone(est.id)}
-                className="flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-              >
-                <Copy className="h-3.5 w-3.5" /> 복제해서 새 견적서
-              </button>
-              {est.status === 'issued' && (
-                <button
-                  onClick={() => router.push(`/checkout?estimateId=${est.id}`)}
-                  className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700"
-                >
-                  <CreditCard className="h-3.5 w-3.5" /> 결제하기
-                </button>
-              )}
-            </div>
-          </div>
-        );
-      })}
+      {estimates.map((est) => (
+        <div key={est.id} ref={est.id === highlight ? highlightRef : undefined}>
+          <EstimateCard est={est} onClone={handleClone} onDelete={handleDelete} />
+        </div>
+      ))}
     </div>
   );
 }
 
 function MyEstimatesInner() {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const { mode, institution } = useInstitutionStore();
+  const { institution } = useInstitutionStore();
+  const [tab, setTab] = useState<Tab>('personal');
 
-  const { data: estimates = [], isLoading } = useQuery<Estimate[]>({
-    queryKey: ['my-estimates', mode],
-    queryFn: async () => {
-      const { data } = await api.get('/estimates/my');
-      return data;
-    },
-  });
-
-  async function handleClone(id: string) {
-    try {
-      const { data } = await api.post(`/estimates/${id}/clone`);
-      await queryClient.invalidateQueries({ queryKey: ['my-estimates'] });
-      router.push(`/my/estimates?highlight=${data.id}`);
-    } catch {
-      alert('복제에 실패했습니다.');
-    }
-  }
-
-  const isInstitution = mode === 'institution';
+  const hasInstitution = !!institution;
 
   return (
     <div className="space-y-4">
-      {/* 현재 모드 표시 */}
-      <div className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium ${
-        isInstitution
-          ? 'bg-indigo-50 text-indigo-700'
-          : 'bg-blue-50 text-blue-700'
-      }`}>
-        {isInstitution ? (
-          <>
-            <Building2 className="h-4 w-4" />
-            기관 견적서 목록 — {institution?.name ?? '기관'}
-          </>
-        ) : (
-          <>
-            <User className="h-4 w-4" />
-            개인 견적서 목록
-          </>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-medium text-gray-500">총 {estimates.length}개</h2>
+      {/* 탭 */}
+      <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
         <button
-          onClick={() => router.push('/estimates/new')}
-          className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white ${
-            isInstitution ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'
+          onClick={() => setTab('personal')}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${
+            tab === 'personal'
+              ? 'bg-white text-blue-600 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
           }`}
         >
-          <Plus className="h-4 w-4" /> 새 견적서 만들기
+          <User className="h-4 w-4" /> 개인 견적서
+        </button>
+        <button
+          onClick={() => {
+            if (!hasInstitution) {
+              router.push('/institution/register');
+              return;
+            }
+            setTab('institution');
+          }}
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition-all ${
+            tab === 'institution'
+              ? 'bg-white text-indigo-600 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Building2 className="h-4 w-4" />
+          기관 견적서
+          {!hasInstitution && <span className="ml-1 text-xs text-gray-400">(미등록)</span>}
         </button>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-24 animate-pulse rounded-xl bg-gray-100" />)}
+      {/* 탭 헤더 */}
+      <div className="flex items-center justify-between">
+        {tab === 'institution' && institution && (
+          <p className="text-xs text-indigo-600 font-medium">{institution.name}</p>
+        )}
+        <div className="ml-auto">
+          <button
+            onClick={() => router.push('/estimates/new')}
+            className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-white ${
+              tab === 'institution' ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+          >
+            <Plus className="h-4 w-4" /> 새 견적서 만들기
+          </button>
         </div>
-      ) : (
-        <EstimateList estimates={estimates} onClone={handleClone} />
-      )}
+      </div>
+
+      <EstimateTabContent key={tab} tab={tab} />
     </div>
   );
 }
