@@ -3,9 +3,10 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
-import { Search, Plus, Trash2, FileText, X } from 'lucide-react';
+import { Search, Plus, Trash2, FileText, X, Building2, User } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
+import { useInstitutionStore } from '@/store/institution.store';
 import type { Product } from '@/types';
 
 interface EstimateItem {
@@ -20,6 +21,8 @@ interface EstimateItem {
 function EstimateNewInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { mode, institution } = useInstitutionStore();
+
   const [items, setItems] = useState<EstimateItem[]>([]);
   const [buyerCompany, setBuyerCompany] = useState('');
   const [buyerContact, setBuyerContact] = useState('');
@@ -30,6 +33,24 @@ function EstimateNewInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prefillDone = useRef(false);
+
+  // 유저 프로필 + 기관정보 기반 기본값 채우기
+  useEffect(() => {
+    if (prefillDone.current) return;
+    prefillDone.current = true;
+
+    api.get('/auth/me').then(({ data }) => {
+      // 담당자/연락처는 모드 무관하게 로그인 유저 정보 기본 입력
+      setBuyerContact(data.name ?? '');
+      setBuyerPhone(data.phone ?? '');
+
+      // 기관 모드면 상호명도 자동 입력
+      if (mode === 'institution' && institution?.name) {
+        setBuyerCompany(institution.name);
+      }
+    }).catch(() => {});
+  }, [mode, institution]);
 
   // 즐겨찾기에서 자동 진입 시 상품 미리 세팅
   useEffect(() => {
@@ -94,14 +115,18 @@ function EstimateNewInner() {
   }
 
   const totalAmount = items.reduce((s, i) => s + i.subtotal, 0);
+  const isInstitution = mode === 'institution';
 
   async function handleSave() {
-    if (!buyerCompany.trim()) { setError('상호명을 입력해주세요.'); return; }
+    if (isInstitution && !buyerCompany.trim()) {
+      setError('상호명을 입력해주세요.');
+      return;
+    }
     if (items.length === 0) { setError('상품을 1개 이상 추가해주세요.'); return; }
     setSaving(true); setError('');
     try {
       const { data } = await api.post('/estimates', {
-        buyerCompany: buyerCompany.trim(),
+        buyerCompany: buyerCompany.trim() || undefined,
         buyerContact: buyerContact.trim() || undefined,
         buyerPhone: buyerPhone.trim() || undefined,
         items: items.map(({ imageUrl: _img, ...i }) => i),
@@ -118,8 +143,13 @@ function EstimateNewInner() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 flex items-center gap-3">
-        <FileText className="h-6 w-6 text-blue-600" />
+        <FileText className={`h-6 w-6 ${isInstitution ? 'text-indigo-600' : 'text-blue-600'}`} />
         <h1 className="text-xl font-bold text-gray-900">견적서 만들기</h1>
+        <span className={`ml-auto flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${
+          isInstitution ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'
+        }`}>
+          {isInstitution ? <><Building2 className="h-3.5 w-3.5" /> 기관 견적서</> : <><User className="h-3.5 w-3.5" /> 개인 견적서</>}
+        </span>
       </div>
 
       {/* 상품 검색 */}
@@ -211,23 +241,34 @@ function EstimateNewInner() {
         <h2 className="mb-3 text-sm font-semibold text-gray-700">공급받는자 정보</h2>
         <div className="space-y-3">
           <div>
-            <label className="mb-1 block text-xs font-medium text-gray-600">상호명 *</label>
-            <input value={buyerCompany} onChange={(e) => setBuyerCompany(e.target.value)}
-              placeholder="예: OO대학교 OO연구실"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <label className="mb-1 block text-xs font-medium text-gray-600">
+              상호명 {isInstitution && <span className="text-red-500">*</span>}
+            </label>
+            <input
+              value={buyerCompany}
+              onChange={(e) => setBuyerCompany(e.target.value)}
+              placeholder={isInstitution ? '기관명을 입력해주세요' : '예: 홍길동 (선택)'}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">담당자</label>
-              <input value={buyerContact} onChange={(e) => setBuyerContact(e.target.value)}
+              <input
+                value={buyerContact}
+                onChange={(e) => setBuyerContact(e.target.value)}
                 placeholder="예: 홍길동"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">연락처</label>
-              <input value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)}
-                placeholder="예: 02-0000-0000"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              <input
+                value={buyerPhone}
+                onChange={(e) => setBuyerPhone(e.target.value)}
+                placeholder="예: 010-0000-0000"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
           </div>
         </div>
@@ -240,8 +281,13 @@ function EstimateNewInner() {
           className="flex-1 rounded-xl border border-gray-300 py-3 text-sm font-medium text-gray-600 hover:bg-gray-50">
           취소
         </button>
-        <button onClick={handleSave} disabled={saving || items.length === 0}
-          className="flex-1 rounded-xl bg-blue-600 py-3 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+        <button
+          onClick={handleSave}
+          disabled={saving || items.length === 0}
+          className={`flex-1 rounded-xl py-3 text-sm font-medium text-white disabled:opacity-50 ${
+            isInstitution ? 'bg-indigo-600 hover:bg-indigo-700' : 'bg-blue-600 hover:bg-blue-700'
+          }`}
+        >
           {saving ? '저장 중...' : '견적서 저장'}
         </button>
       </div>
