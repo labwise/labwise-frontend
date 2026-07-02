@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileText, ExternalLink, Copy, Plus, CreditCard } from 'lucide-react';
+import { FileText, ExternalLink, Copy, Plus, CreditCard, Building2 } from 'lucide-react';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
 import { Suspense } from 'react';
@@ -24,6 +24,7 @@ interface Estimate {
   items: EstimateItem[];
   totalAmount: number;
   status: 'issued' | 'paid';
+  institutionId?: string;
   createdAt: string;
 }
 
@@ -117,6 +118,11 @@ function MyEstimatesInner() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-gray-900">{est.estimateNumber}</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.color}`}>{st.label}</span>
+                    {est.institutionId && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">
+                        <Building2 className="h-3 w-3" /> 기관
+                      </span>
+                    )}
                     <span className="text-xs text-gray-400">
                       {new Date(est.createdAt).toLocaleDateString('ko-KR')}
                     </span>

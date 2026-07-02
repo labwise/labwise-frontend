@@ -76,16 +76,24 @@ function QtyControl({
   );
 }
 
+interface EstimateCheckoutItem {
+  key: string; productId: string; productName: string;
+  unitPrice: number; quantity: number;
+  stockQuantity: number; minQty: number; maxQty: number;
+}
+
 function CheckoutInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isBuyNow = searchParams.get('mode') === 'buyNow';
+  const estimateId = searchParams.get('estimateId');
 
   const { user } = useAuthStore();
   const { items: cartItems, clearCart, fetchCart, updateItem } = useCartStore();
 
   const [cartReady, setCartReady] = useState(false);
   const [buyNowItem, setBuyNowItem] = useState<BuyNowItem | null>(null);
+  const [estimateItems, setEstimateItems] = useState<EstimateCheckoutItem[]>([]);
   // local qty overrides (productId → qty)
   const [localQtys, setLocalQtys] = useState<Record<string, number>>({});
 
@@ -107,7 +115,25 @@ function CheckoutInner() {
   useEffect(() => {
     if (!user) { router.push('/login'); return; }
 
-    if (isBuyNow) {
+    if (estimateId) {
+      // 견적서 결제 모드
+      api.get(`/estimates/${estimateId}`).then(({ data }) => {
+        const items: EstimateCheckoutItem[] = (data.items ?? []).map((item: any, idx: number) => ({
+          key: `est-${idx}`,
+          productId: item.productId ?? '',
+          productName: item.productName,
+          unitPrice: item.unitPrice,
+          quantity: item.quantity,
+          stockQuantity: 9999,
+          minQty: 1,
+          maxQty: 9999,
+        }));
+        setEstimateItems(items);
+        setCartReady(true);
+      }).catch(() => {
+        router.push('/my/estimates');
+      });
+    } else if (isBuyNow) {
       try {
         const raw = sessionStorage.getItem('labwise_buy_now');
         if (raw) {
@@ -130,8 +156,8 @@ function CheckoutInner() {
 
   useEffect(() => {
     if (!cartReady) return;
-    if (!isBuyNow && cartItems.length === 0) router.push('/cart');
-  }, [cartReady, cartItems, isBuyNow, router]);
+    if (!isBuyNow && !estimateId && cartItems.length === 0) router.push('/cart');
+  }, [cartReady, cartItems, isBuyNow, estimateId, router]);
 
   useEffect(() => {
     api.get('/shipping-addresses').then(({ data }) => {
@@ -156,31 +182,29 @@ function CheckoutInner() {
   }, [isBuyNow, cartItems, updateItem]);
 
   // ── 실제 결제 아이템 목록 ──────────────────────────────────────────────────
-  const displayItems: Array<{
-    key: string; productId: string; productName: string;
-    unitPrice: number; quantity: number;
-    stockQuantity: number; minQty: number; maxQty: number;
-  }> = isBuyNow && buyNowItem
-    ? [{
-        key: buyNowItem.productId,
-        productId: buyNowItem.productId,
-        productName: buyNowItem.productName,
-        unitPrice: buyNowItem.unitPrice,
-        quantity: localQtys[buyNowItem.productId] ?? buyNowItem.quantity,
-        stockQuantity: buyNowItem.stockQuantity,
-        minQty: buyNowItem.minOrderQty,
-        maxQty: Math.min(buyNowItem.maxOrderQty ?? 9999, buyNowItem.stockQuantity),
-      }]
-    : cartItems.map((ci) => ({
-        key: ci.id,
-        productId: ci.productId,
-        productName: ci.productName,
-        unitPrice: ci.unitPrice,
-        quantity: localQtys[ci.productId] ?? ci.quantity,
-        stockQuantity: 9999, // 장바구니는 상세 재고 없음, 서버가 검증
-        minQty: 1,
-        maxQty: 9999,
-      }));
+  const displayItems: EstimateCheckoutItem[] = estimateId
+    ? estimateItems
+    : isBuyNow && buyNowItem
+      ? [{
+          key: buyNowItem.productId,
+          productId: buyNowItem.productId,
+          productName: buyNowItem.productName,
+          unitPrice: buyNowItem.unitPrice,
+          quantity: localQtys[buyNowItem.productId] ?? buyNowItem.quantity,
+          stockQuantity: buyNowItem.stockQuantity,
+          minQty: buyNowItem.minOrderQty,
+          maxQty: Math.min(buyNowItem.maxOrderQty ?? 9999, buyNowItem.stockQuantity),
+        }]
+      : cartItems.map((ci) => ({
+          key: ci.id,
+          productId: ci.productId,
+          productName: ci.productName,
+          unitPrice: ci.unitPrice,
+          quantity: localQtys[ci.productId] ?? ci.quantity,
+          stockQuantity: 9999,
+          minQty: 1,
+          maxQty: 9999,
+        }));
 
   const productTotal = displayItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
   const shippingFee = productTotal >= 50000 ? 0 : 3000;
@@ -212,13 +236,15 @@ function CheckoutInner() {
       paymentMethod: data.paymentMethod,
       taxInvoiceRequested: data.taxInvoiceRequested ?? false,
       memo: data.memo,
+      ...(estimateId ? { estimateId } : {}),
     };
 
     try {
       // ── 무통장 입금: 주문 먼저 생성 ─────────────────────────────────────
       if (data.paymentMethod === 'BANK_TRANSFER') {
         const { data: order } = await api.post('/orders', orderPayload);
-        isBuyNow ? sessionStorage.removeItem('labwise_buy_now') : await clearCart();
+        if (isBuyNow) sessionStorage.removeItem('labwise_buy_now');
+        else if (!estimateId) await clearCart();
         router.push(`/checkout/success?orderId=${order.id}&method=BANK_TRANSFER&amount=${finalAmount}`);
         return;
       }
