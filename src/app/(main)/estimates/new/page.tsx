@@ -33,24 +33,26 @@ function EstimateNewInner() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prefillDone = useRef(false);
+  const userPrefillDone = useRef(false);
+  const companyPrefillDone = useRef(false);
 
-  // 유저 프로필 + 기관정보 기반 기본값 채우기
+  // 로그인 유저 이름/전화번호 기본 입력 (최초 1회)
   useEffect(() => {
-    if (prefillDone.current) return;
-    prefillDone.current = true;
-
+    if (userPrefillDone.current) return;
+    userPrefillDone.current = true;
     api.get('/auth/me').then(({ data }) => {
-      // 담당자/연락처는 모드 무관하게 로그인 유저 정보 기본 입력
       setBuyerContact(data.name ?? '');
       setBuyerPhone(data.phone ?? '');
-
-      // 기관 모드면 상호명도 자동 입력
-      if (mode === 'institution' && institution?.name) {
-        setBuyerCompany(institution.name);
-      }
     }).catch(() => {});
-  }, [mode, institution]);
+  }, []);
+
+  // 기관 모드일 때 기관명 자동 입력 (institution 로드되면 즉시)
+  useEffect(() => {
+    if (mode !== 'institution' || !institution?.name) return;
+    if (companyPrefillDone.current) return;
+    companyPrefillDone.current = true;
+    setBuyerCompany(institution.name);
+  }, [mode, institution?.name]);
 
   // 즐겨찾기에서 자동 진입 시 상품 미리 세팅
   useEffect(() => {
