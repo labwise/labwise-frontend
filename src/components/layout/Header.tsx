@@ -30,23 +30,25 @@ export function Header() {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
 
+  // 로그인 시에만 institution 데이터 로드 — null일 때 reset 안 함
+  // (null = 초기 로드 중, auth store 하이드레이션 전. reset하면 localStorage 모드가 덮어쓰임)
   useEffect(() => {
     if (user) {
       fetchInstitution();
-    } else {
-      resetInstitution();
     }
   }, [user?.id]);
 
   const handleModeSwitch = async () => {
     if (!user) return;
+    // 기관 미등록 상태: API 호출 없이 바로 등록 페이지로
+    if (mode === 'personal' && !institution) {
+      router.push('/institution/register');
+      return;
+    }
     setSwitching(true);
     try {
       const next = mode === 'personal' ? 'institution' : 'personal';
       await switchMode(next);
-      if (next === 'institution' && !institution) {
-        router.push('/institution/register');
-      }
     } catch {
       router.push('/institution/register');
     } finally {
@@ -70,6 +72,7 @@ export function Header() {
       await api.post('/auth/logout');
     } catch {}
     logout();
+    resetInstitution();
     router.push('/');
   };
 
@@ -109,15 +112,18 @@ export function Header() {
                 <button
                   onClick={handleModeSwitch}
                   disabled={switching}
-                  title={mode === 'personal' ? '기관 모드로 전환' : '개인 모드로 전환'}
-                  className={`hidden md:flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+                  className={`group hidden md:flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
                     mode === 'institution'
-                      ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                      ? 'bg-indigo-600 text-white hover:bg-indigo-500'
                       : 'border border-gray-300 text-gray-600 hover:border-indigo-400 hover:text-indigo-600'
                   } ${switching ? 'opacity-60 cursor-not-allowed' : ''}`}
                 >
                   <Building2 className="h-3.5 w-3.5" />
-                  {mode === 'institution' ? (institution?.name ?? '기관 모드') : '기관 전환'}
+                  {mode === 'institution'
+                    ? '개인으로 전환'
+                    : institution
+                    ? '기관 전환'
+                    : '기관 등록'}
                 </button>
 
                 <Link
@@ -131,10 +137,17 @@ export function Header() {
                   className="hidden items-center gap-1 text-sm text-gray-600 hover:text-blue-600 md:flex"
                 >
                   <User className="h-4 w-4" />
-                  <span>{user.name}</span>
+                  {mode === 'institution' && institution ? (
+                    <>
+                      <span>{institution.name}</span>
+                      <span className="text-indigo-400">({user.name})</span>
+                    </>
+                  ) : (
+                    <span>{user.name}</span>
+                  )}
                   <span className={mode === 'institution' ? 'text-indigo-600' : 'text-blue-600'}>
                     ({mode === 'institution'
-                      ? `기관 ${formatWise(institution?.pointBalance ?? 0)}`
+                      ? formatWise(institution?.pointBalance ?? 0)
                       : formatWise(user.pointBalance)})
                   </span>
                 </Link>

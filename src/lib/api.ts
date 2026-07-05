@@ -37,7 +37,12 @@ api.interceptors.response.use(
       } catch {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        // 인증이 필요한 페이지에서만 /login으로 이동
+        const protectedPrefixes = ['/my', '/checkout', '/cart', '/estimates', '/orders', '/institution/dashboard', '/institution/members', '/admin', '/point-mall'];
+        const path = window.location.pathname;
+        if (protectedPrefixes.some((p) => path.startsWith(p))) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);
