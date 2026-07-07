@@ -11,6 +11,7 @@ const navItems = [
   { href: '/my/estimates', label: '견적서 내역' },
   { href: '/my/addresses', label: '배송지 관리' },
   { href: '/my/points', label: '와이즈 내역' },
+  { href: '/my/coupons', label: '쿠폰함' },
   { href: '/my/inquiry', label: '1:1 문의' },
 ];
 

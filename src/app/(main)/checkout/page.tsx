@@ -33,6 +33,18 @@ interface SavedAddress {
   addressDetail: string | null; isDefault: boolean;
 }
 
+interface MyCoupon {
+  id: string;
+  couponId: string;
+  usedAt: string | null;
+  coupon: {
+    id: string; name: string; type: 'FIXED' | 'PERCENT' | 'FREE_SHIPPING';
+    discountAmount?: number; discountRate?: number; maxDiscountAmount?: number;
+    minOrderAmount: number; isActive: boolean;
+    validFrom?: string | null; validTo?: string | null;
+  };
+}
+
 export interface BuyNowItem {
   productId: string;
   productName: string;
@@ -103,6 +115,33 @@ function CheckoutInner() {
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [showAddressPicker, setShowAddressPicker] = useState(false);
+
+  const [myCoupons, setMyCoupons] = useState<MyCoupon[]>([]);
+  const [selectedCouponId, setSelectedCouponId] = useState<string | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponError, setCouponError] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+
+  const loadMyCoupons = useCallback(() => {
+    api.get('/coupons/my').then(({ data }) => setMyCoupons(data)).catch(() => {});
+  }, []);
+
+  useEffect(() => { loadMyCoupons(); }, [loadMyCoupons]);
+
+  const handleRedeemCode = async () => {
+    if (!couponCode.trim()) return;
+    setRedeeming(true);
+    setCouponError('');
+    try {
+      await api.post('/coupons/redeem', { code: couponCode.trim() });
+      setCouponCode('');
+      loadMyCoupons();
+    } catch (err: any) {
+      setCouponError(err.response?.data?.message ?? '쿠폰 등록에 실패했습니다.');
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -207,9 +246,34 @@ function CheckoutInner() {
         }));
 
   const productTotal = displayItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-  const shippingFee = productTotal >= 50000 ? 0 : 3000;
-  const appliedPoints = Math.min(pointInput, user?.pointBalance ?? 0, productTotal);
-  const finalAmount = productTotal - appliedPoints + shippingFee;
+
+  const now = Date.now();
+  const usableCoupons = myCoupons.filter((uc) => {
+    if (uc.usedAt || !uc.coupon.isActive) return false;
+    if (uc.coupon.validFrom && now < new Date(uc.coupon.validFrom).getTime()) return false;
+    if (uc.coupon.validTo && now > new Date(uc.coupon.validTo).getTime()) return false;
+    return true;
+  });
+  const selectedCoupon = usableCoupons.find((uc) => uc.couponId === selectedCouponId) ?? null;
+  const couponMeetsMin = !selectedCoupon || productTotal >= selectedCoupon.coupon.minOrderAmount;
+
+  let couponDiscount = 0;
+  let couponFreeShipping = false;
+  if (selectedCoupon && couponMeetsMin) {
+    const c = selectedCoupon.coupon;
+    if (c.type === 'FIXED') {
+      couponDiscount = Math.min(c.discountAmount ?? 0, productTotal);
+    } else if (c.type === 'PERCENT') {
+      couponDiscount = Math.floor((productTotal * (c.discountRate ?? 0)) / 100);
+      if (c.maxDiscountAmount) couponDiscount = Math.min(couponDiscount, c.maxDiscountAmount);
+    } else if (c.type === 'FREE_SHIPPING') {
+      couponFreeShipping = true;
+    }
+  }
+
+  const shippingFee = couponFreeShipping ? 0 : productTotal >= 50000 ? 0 : 3000;
+  const appliedPoints = Math.min(pointInput, user?.pointBalance ?? 0, productTotal - couponDiscount);
+  const finalAmount = Math.max(0, productTotal - couponDiscount - appliedPoints) + shippingFee;
 
   // ── 주소 자동 입력 ─────────────────────────────────────────────────────────
   const fillFromAddress = (addr: SavedAddress) => {
@@ -236,6 +300,7 @@ function CheckoutInner() {
       paymentMethod: data.paymentMethod,
       taxInvoiceRequested: data.taxInvoiceRequested ?? false,
       memo: data.memo,
+      ...(selectedCoupon && couponMeetsMin ? { couponId: selectedCoupon.couponId } : {}),
       ...(estimateId ? { estimateId } : {}),
     };
 
@@ -358,6 +423,70 @@ function CheckoutInner() {
               </div>
             </div>
 
+            {/* 쿠폰 */}
+            <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <h2 className="mb-4 font-semibold text-gray-900">쿠폰 사용</h2>
+              <div className="mb-3 flex gap-2">
+                <input
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                  placeholder="쿠폰 코드 입력"
+                  className="flex-1 rounded-md border border-gray-300 px-3 py-1.5 text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={handleRedeemCode}
+                  disabled={redeeming}
+                  className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {redeeming ? '등록 중...' : '코드 등록'}
+                </button>
+              </div>
+              {couponError && <p className="mb-3 text-xs text-red-500">{couponError}</p>}
+
+              {usableCoupons.length === 0 ? (
+                <p className="text-sm text-gray-400">사용 가능한 쿠폰이 없습니다.</p>
+              ) : (
+                <div className="space-y-2">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-500">
+                    <input type="radio" checked={selectedCouponId === null} onChange={() => setSelectedCouponId(null)} />
+                    쿠폰 사용 안 함
+                  </label>
+                  {usableCoupons.map((uc) => {
+                    const belowMin = productTotal < uc.coupon.minOrderAmount;
+                    const benefit =
+                      uc.coupon.type === 'FIXED' ? `${uc.coupon.discountAmount?.toLocaleString()}원 할인`
+                      : uc.coupon.type === 'PERCENT' ? `${uc.coupon.discountRate}% 할인`
+                      : '무료배송';
+                    return (
+                      <label
+                        key={uc.id}
+                        className={`flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-sm ${
+                          selectedCouponId === uc.couponId ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+                        } ${belowMin ? 'opacity-50' : ''}`}
+                      >
+                        <input
+                          type="radio"
+                          className="mt-0.5"
+                          disabled={belowMin}
+                          checked={selectedCouponId === uc.couponId}
+                          onChange={() => setSelectedCouponId(uc.couponId)}
+                        />
+                        <span>
+                          <span className="block font-medium text-gray-900">{uc.coupon.name}</span>
+                          <span className="block text-xs text-gray-500">
+                            {benefit}
+                            {uc.coupon.minOrderAmount > 0 && ` · ${uc.coupon.minOrderAmount.toLocaleString()}원 이상`}
+                            {belowMin && ' (최소 주문금액 미달)'}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             {/* 와이즈 포인트 */}
             {user && user.pointBalance > 0 && (
               <div className="rounded-xl border border-gray-200 bg-white p-6">
@@ -451,6 +580,18 @@ function CheckoutInner() {
                   <span className="text-gray-500">상품 금액</span>
                   <span>{formatPrice(productTotal)}</span>
                 </div>
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>쿠폰 할인</span>
+                    <span>-{formatPrice(couponDiscount)}</span>
+                  </div>
+                )}
+                {couponFreeShipping && (
+                  <div className="flex justify-between text-blue-600">
+                    <span>쿠폰</span>
+                    <span>무료배송 적용</span>
+                  </div>
+                )}
                 {appliedPoints > 0 && (
                   <div className="flex justify-between text-blue-600">
                     <span>와이즈 할인</span>

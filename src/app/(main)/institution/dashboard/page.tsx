@@ -22,6 +22,7 @@ interface LedgerEntry {
   amount: number;
   description: string;
   createdAt: string;
+  user?: { name: string; email: string } | null;
 }
 
 interface PointData {
@@ -201,12 +202,13 @@ export default function InstitutionDashboardPage() {
                       <p className="text-sm text-gray-800">{entry.description}</p>
                       <p className="text-xs text-gray-400">
                         {new Date(entry.createdAt).toLocaleDateString('ko-KR')}
+                        {entry.user && <> · {entry.user.name}</>}
                       </p>
                     </div>
                     <span className={`text-sm font-semibold ${
-                      entry.type === 'earn' ? 'text-green-600' : 'text-red-500'
+                      entry.amount > 0 ? 'text-green-600' : 'text-red-500'
                     }`}>
-                      {entry.type === 'earn' ? '+' : '-'}{formatWise(entry.amount)}
+                      {entry.amount > 0 ? '+' : ''}{formatWise(entry.amount)}
                     </span>
                   </li>
                 ))}

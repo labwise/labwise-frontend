@@ -29,9 +29,9 @@ interface InstitutionLedger {
   id: string;
   type: string;
   amount: number;
-  balanceAfter: number;
-  reason?: string;
+  description?: string;
   createdAt: string;
+  user?: { name: string; email: string } | null;
 }
 
 export default function PointsPage() {
@@ -86,14 +86,16 @@ export default function PointsPage() {
                   <p className="text-sm font-medium text-gray-900">
                     {institutionTypeLabels[item.type] ?? item.type}
                   </p>
-                  {item.reason && <p className="text-xs text-gray-400">{item.reason}</p>}
-                  <p className="text-xs text-gray-400">{formatDateTime(item.createdAt)}</p>
+                  {item.description && <p className="text-xs text-gray-400">{item.description}</p>}
+                  <p className="text-xs text-gray-400">
+                    {formatDateTime(item.createdAt)}
+                    {item.user && <> · {item.user.name}</>}
+                  </p>
                 </div>
                 <div className="text-right">
                   <p className={`font-semibold ${item.amount > 0 ? 'text-indigo-600' : 'text-red-500'}`}>
                     {item.amount > 0 ? '+' : ''}{formatWise(item.amount)}
                   </p>
-                  <p className="text-xs text-gray-400">잔액: {formatWise(item.balanceAfter)}</p>
                 </div>
               </div>
             ))}
