@@ -23,6 +23,9 @@ interface Order {
   trackingNumber?: string;
   trackingCompany?: string;
   cancelReason?: string;
+  refundReasonCategory?: string;
+  returnShippingFeeBearer?: 'BUYER' | 'SELLER';
+  refundRequestedAt?: string;
   shippingAddress: { recipientName: string; phone: string; addressLine1: string; city: string; zipCode: string };
   memo?: string;
   createdAt: string;
@@ -30,6 +33,19 @@ interface Order {
   deliveredAt?: string;
   user: { id: string; name: string; email: string };
   items: OrderItem[];
+}
+
+const REFUND_CATEGORY_LABEL: Record<string, string> = {
+  CHANGE_OF_MIND: '단순 변심',
+  DEFECTIVE: '상품 불량/파손',
+  WRONG_ITEM: '오배송',
+  DESCRIPTION_MISMATCH: '설명과 다름',
+  OTHER: '기타',
+};
+
+function slaDays(refundRequestedAt?: string): number | null {
+  if (!refundRequestedAt) return null;
+  return Math.floor((Date.now() - new Date(refundRequestedAt).getTime()) / (1000 * 60 * 60 * 24));
 }
 
 const TABS: { value: OrderStatus | ''; label: string; color: string }[] = [
@@ -187,9 +203,23 @@ export default function AdminOrdersPage() {
   }
 
   async function handleRefund(order: Order) {
-    if (!confirm(`주문 ${order.orderNumber} 환불 처리하시겠습니까?\n카드/가상계좌 결제 시 자동으로 취소됩니다.`)) return;
+    const categoryLabel = order.refundReasonCategory ? REFUND_CATEGORY_LABEL[order.refundReasonCategory] ?? order.refundReasonCategory : '없음(관리자 취소)';
+    const bearerLabel = order.returnShippingFeeBearer === 'BUYER' ? '구매자 부담 (반품배송비 차감 후 환불)' : '판매자 부담 (전액 환불)';
+    if (!confirm(
+      `주문 ${order.orderNumber} 환불 처리하시겠습니까?\n` +
+      `사유: ${categoryLabel} / ${bearerLabel}\n` +
+      `카드/가상계좌 결제 시 자동으로 취소됩니다.`
+    )) return;
+
+    let bearerOverride: 'BUYER' | 'SELLER' | undefined;
+    if (order.refundReasonCategory === 'OTHER' || !order.refundReasonCategory) {
+      const input = prompt('반품배송비 부담 주체를 지정하세요 (buyer/seller)', order.returnShippingFeeBearer?.toLowerCase() ?? 'buyer');
+      if (input === 'buyer') bearerOverride = 'BUYER';
+      else if (input === 'seller') bearerOverride = 'SELLER';
+    }
+
     try {
-      await adminApi.post(`/admin/orders/${order.id}/refund`, { reason: '관리자 환불 처리' });
+      await adminApi.post(`/admin/orders/${order.id}/refund`, { reason: '관리자 환불 처리', bearerOverride });
       load();
     } catch (e: any) {
       alert(e.response?.data?.message ?? '환불 처리 중 오류가 발생했습니다.');
@@ -433,6 +463,23 @@ export default function AdminOrdersPage() {
                           사유: {o.cancelReason}
                         </p>
                       )}
+                      {o.refundReasonCategory && (
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {REFUND_CATEGORY_LABEL[o.refundReasonCategory] ?? o.refundReasonCategory}
+                          {' · '}
+                          {o.returnShippingFeeBearer === 'BUYER' ? '배송비 구매자부담' : '배송비 판매자부담'}
+                        </p>
+                      )}
+                      {o.status === 'CANCELLED' && o.refundRequestedAt && (() => {
+                        const days = slaDays(o.refundRequestedAt);
+                        return days !== null && days >= 3 ? (
+                          <p className="mt-0.5 text-xs font-semibold text-red-600">
+                            ⚠ 환불 대기 {days}일째 (SLA 초과)
+                          </p>
+                        ) : days !== null ? (
+                          <p className="mt-0.5 text-xs text-amber-500">환불 대기 {days}일째</p>
+                        ) : null;
+                      })()}
                     </td>
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{o.user?.name}</p>

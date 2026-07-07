@@ -90,6 +90,7 @@ export type OrderStatus =
   | 'PREPARING'
   | 'SHIPPED'
   | 'DELIVERED'
+  | 'CONFIRMED'
   | 'CANCELLED'
   | 'REFUNDED';
 

@@ -2,7 +2,20 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import adminApi from '@/lib/admin-api';
-import { Users, ShoppingCart, DollarSign, Package, ChevronRight } from 'lucide-react';
+import { Users, ShoppingCart, DollarSign, Package, ChevronRight, AlertTriangle } from 'lucide-react';
+
+interface SiteConfig {
+  companyName?: string; ceoName?: string; businessNumber?: string;
+  address?: string; mailOrderNumber?: string;
+}
+
+const REQUIRED_LEGAL_FIELDS: { key: keyof SiteConfig; label: string }[] = [
+  { key: 'companyName', label: '상호(회사명)' },
+  { key: 'ceoName', label: '대표자명' },
+  { key: 'businessNumber', label: '사업자등록번호' },
+  { key: 'address', label: '사업장 주소' },
+  { key: 'mailOrderNumber', label: '통신판매업 신고번호' },
+];
 
 interface Stats {
   totalUsers: number;
@@ -64,12 +77,18 @@ const ORDER_STATUS_ROWS: {
 export default function DashboardPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [missingLegalFields, setMissingLegalFields] = useState<string[]>([]);
 
   useEffect(() => {
     adminApi
       .get('/admin/dashboard')
       .then(({ data }) => setStats(data))
       .finally(() => setLoading(false));
+
+    adminApi.get('/admin/site-settings').then(({ data }: { data: SiteConfig }) => {
+      const missing = REQUIRED_LEGAL_FIELDS.filter((f) => !data?.[f.key]?.trim()).map((f) => f.label);
+      setMissingLegalFields(missing);
+    }).catch(() => {});
   }, []);
 
   if (loading) return <p className="text-sm text-gray-400">불러오는 중...</p>;
@@ -80,6 +99,21 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-gray-900">대시보드</h1>
+
+      {missingLegalFields.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-800">전자상거래법상 필수 표시 정보가 비어있습니다</p>
+            <p className="mt-0.5 text-amber-700">
+              {missingLegalFields.join(', ')} —{' '}
+              <Link href="/admin/site-settings" className="font-medium underline hover:text-amber-900">
+                사이트 설정에서 입력하기
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 주요 지표 */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

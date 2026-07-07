@@ -41,7 +41,19 @@ interface Order {
   items: OrderItem[];
   trackingNumber?: string;
   trackingCompany?: string;
+  cancelReason?: string;
+  refundReasonCategory?: string;
+  returnShippingFeeBearer?: 'BUYER' | 'SELLER';
+  refundRequestedAt?: string;
 }
+
+const REFUND_CATEGORY_LABEL: Record<string, string> = {
+  CHANGE_OF_MIND: '단순 변심',
+  DEFECTIVE: '상품 불량/파손',
+  WRONG_ITEM: '오배송',
+  DESCRIPTION_MISMATCH: '설명과 다름',
+  OTHER: '기타',
+};
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -91,6 +103,27 @@ export default function OrderDetailPage() {
       setTimeout(() => setTrackingSaved(false), 2000);
     } finally {
       setTrackingSaving(false);
+    }
+  }
+
+  async function handleRefund() {
+    if (!order) return;
+    const categoryLabel = order.refundReasonCategory ? REFUND_CATEGORY_LABEL[order.refundReasonCategory] ?? order.refundReasonCategory : '없음(관리자 취소)';
+    const bearerLabel = order.returnShippingFeeBearer === 'BUYER' ? '구매자 부담 (반품배송비 차감 후 환불)' : '판매자 부담 (전액 환불)';
+    if (!confirm(`환불 처리하시겠습니까?\n사유: ${categoryLabel} / ${bearerLabel}\n카드/가상계좌 결제 시 자동으로 취소됩니다.`)) return;
+
+    let bearerOverride: 'BUYER' | 'SELLER' | undefined;
+    if (order.refundReasonCategory === 'OTHER' || !order.refundReasonCategory) {
+      const input = prompt('반품배송비 부담 주체를 지정하세요 (buyer/seller)', order.returnShippingFeeBearer?.toLowerCase() ?? 'buyer');
+      if (input === 'buyer') bearerOverride = 'BUYER';
+      else if (input === 'seller') bearerOverride = 'SELLER';
+    }
+
+    try {
+      const { data } = await adminApi.post(`/admin/orders/${id}/refund`, { reason: '관리자 환불 처리', bearerOverride });
+      setOrder(data);
+    } catch (e: any) {
+      alert(e.response?.data?.message ?? '환불 처리 중 오류가 발생했습니다.');
     }
   }
 
@@ -220,7 +253,7 @@ export default function OrderDetailPage() {
                   onChange={(e) => setNewStatus(e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                  {[...STATUS_FLOW, 'CANCELLED', 'REFUNDED'].map((s) => (
+                  {[...STATUS_FLOW, 'CANCELLED'].map((s) => (
                     <option key={s} value={s}>{STATUS_LABELS[s]}</option>
                   ))}
                 </select>
@@ -243,6 +276,31 @@ export default function OrderDetailPage() {
               </button>
             </div>
           </div>
+
+          {/* 취소/환불 정보 */}
+          {(order.cancelReason || order.refundReasonCategory) && (
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
+              <h2 className="font-semibold text-gray-800 mb-3">취소/환불 정보</h2>
+              <div className="text-sm space-y-1 mb-4">
+                {order.cancelReason && <p className="text-gray-700">사유: {order.cancelReason}</p>}
+                {order.refundReasonCategory && (
+                  <p className="text-gray-500">
+                    분류: {REFUND_CATEGORY_LABEL[order.refundReasonCategory] ?? order.refundReasonCategory}
+                    {' · '}
+                    반품배송비 {order.returnShippingFeeBearer === 'BUYER' ? '구매자 부담' : '판매자 부담'}
+                  </p>
+                )}
+              </div>
+              {order.status === 'CANCELLED' && (
+                <button
+                  onClick={handleRefund}
+                  className="w-full bg-red-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-700"
+                >
+                  환불 처리 (PG 취소)
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Customer */}
           <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">

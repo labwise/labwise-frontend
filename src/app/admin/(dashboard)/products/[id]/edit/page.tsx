@@ -374,6 +374,11 @@ export default function EditProductPage() {
               />
             </div>
             {field('SDS 파일 URL', 'sdsFileUrl')}
+            {form.casNumber.trim() && !form.sdsFileUrl.trim() && form.isActive && form.isDisplayed && (
+              <p className="text-xs text-amber-600">
+                ⚠ CAS번호가 입력된 상품은 SDS 파일을 첨부해야 판매 노출(활성화+진열) 상태로 저장할 수 있습니다.
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-6 pt-1">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={form.isActive} onChange={(e) => set('isActive', e.target.checked)} className="rounded" />

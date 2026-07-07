@@ -22,10 +22,19 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   REFUNDED: { label: '환불 완료', color: 'text-gray-600 bg-gray-50' },
 };
 
+const REFUND_REASONS = [
+  { value: 'CHANGE_OF_MIND', label: '단순 변심', note: '반품 배송비는 고객님 부담입니다' },
+  { value: 'DEFECTIVE', label: '상품 불량/파손', note: '반품 배송비는 저희가 부담합니다' },
+  { value: 'WRONG_ITEM', label: '오배송 (다른 상품 도착)', note: '반품 배송비는 저희가 부담합니다' },
+  { value: 'DESCRIPTION_MISMATCH', label: '상품 설명과 실물이 다름', note: '반품 배송비는 저희가 부담합니다' },
+  { value: 'OTHER', label: '기타', note: '상세 사유를 입력해주세요' },
+] as const;
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const queryClient = useQueryClient();
-  const [refundReason, setRefundReason] = useState('');
+  const [refundCategory, setRefundCategory] = useState<typeof REFUND_REASONS[number]['value']>('CHANGE_OF_MIND');
+  const [refundDetail, setRefundDetail] = useState('');
   const [showRefundModal, setShowRefundModal] = useState(false);
 
   const { data: order, isLoading } = useQuery<Order>({
@@ -51,7 +60,7 @@ export default function OrderDetailPage() {
 
   const cancelMutation = useMutation({
     mutationFn: async () => {
-      await api.delete(`/orders/${id}`);
+      await api.post('/payments/cancel', { orderId: id, cancelReason: '고객 요청 취소' });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['order', id] });
@@ -60,8 +69,8 @@ export default function OrderDetailPage() {
   });
 
   const refundMutation = useMutation({
-    mutationFn: async (reason: string) => {
-      await api.post(`/orders/${id}/refund`, { reason });
+    mutationFn: async () => {
+      await api.post(`/orders/${id}/refund`, { category: refundCategory, detail: refundDetail || undefined });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['order', id] });
@@ -76,7 +85,7 @@ export default function OrderDetailPage() {
   const st = statusLabels[order.status] ?? { label: order.status, color: 'text-gray-600 bg-gray-50' };
   const addr = order.shippingAddress;
   const canCancel = order.status === 'PENDING' || order.status === 'PAID';
-  const canRefund = order.status === 'DELIVERED';
+  const canRefund = order.status === 'DELIVERED' || order.status === 'CONFIRMED';
 
   return (
     <div className="space-y-4">
@@ -91,7 +100,7 @@ export default function OrderDetailPage() {
               size="sm"
               loading={cancelMutation.isPending}
               onClick={() => {
-                if (confirm('주문을 취소하시겠습니까?\n입금 완료된 주문은 관리자가 환불 처리합니다.'))
+                if (confirm('주문을 취소하시겠습니까?\n결제가 완료된 주문은 즉시 환불 처리됩니다.'))
                   cancelMutation.mutate();
               }}
             >
@@ -115,15 +124,35 @@ export default function OrderDetailPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
           <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
             <h3 className="mb-3 text-base font-bold text-gray-900">반품/환불 신청</h3>
-            <p className="mb-4 text-sm text-gray-500">
-              신청 사유를 입력해주세요. 관리자 확인 후 처리됩니다.
+            <p className="mb-3 text-sm text-gray-500">
+              신청 사유를 선택해주세요. 사유에 따라 반품 배송비 부담 주체가 달라집니다.
             </p>
+            <div className="space-y-2">
+              {REFUND_REASONS.map((r) => (
+                <label
+                  key={r.value}
+                  className={`flex cursor-pointer flex-col gap-0.5 rounded-lg border p-3 text-sm ${
+                    refundCategory === r.value ? 'border-blue-400 bg-blue-50' : 'border-gray-200'
+                  }`}
+                >
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      checked={refundCategory === r.value}
+                      onChange={() => setRefundCategory(r.value)}
+                    />
+                    <span className="font-medium text-gray-900">{r.label}</span>
+                  </span>
+                  <span className="ml-6 text-xs text-gray-400">{r.note}</span>
+                </label>
+              ))}
+            </div>
             <textarea
-              value={refundReason}
-              onChange={(e) => setRefundReason(e.target.value)}
-              placeholder="예: 상품 불량, 오배송, 단순 변심 등"
-              rows={3}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={refundDetail}
+              onChange={(e) => setRefundDetail(e.target.value)}
+              placeholder={refundCategory === 'OTHER' ? '상세 사유를 입력해주세요 (필수)' : '상세 내용 (선택)'}
+              rows={2}
+              className="mt-3 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <div className="mt-4 flex gap-2">
               <Button
@@ -137,8 +166,10 @@ export default function OrderDetailPage() {
                 className="flex-1"
                 loading={refundMutation.isPending}
                 onClick={() => {
-                  if (!refundReason.trim()) return alert('사유를 입력해주세요.');
-                  refundMutation.mutate(refundReason.trim());
+                  if (refundCategory === 'OTHER' && !refundDetail.trim()) {
+                    return alert('기타 사유는 상세 내용을 입력해주세요.');
+                  }
+                  refundMutation.mutate();
                 }}
               >
                 신청하기
