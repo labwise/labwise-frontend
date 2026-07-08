@@ -4,12 +4,24 @@ import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import adminApi from '@/lib/admin-api';
 import { Ticket, Trophy, Gift, Trash2, Plus, RefreshCw, Users, Calendar, AlertCircle, Upload, Heart, RotateCcw, Building2 } from 'lucide-react';
-import { formatPrice } from '@/lib/utils';
+import { formatPrice, formatWise } from '@/lib/utils';
 
 interface Tier { id: string; minAmount: number; prizeName: string; prizeDescription?: string; prizeImageUrl?: string; sortOrder: number }
-interface Draw { id: string; drawnAt: string; totalAmount: number; prizeName?: string; winnerMaskedName?: string }
+interface Draw {
+  id: string; drawnAt: string; totalAmount: number;
+  winnerType?: 'PERSONAL' | 'INSTITUTION';
+  prizeName?: string; winnerMaskedName?: string;
+  winnerInstitutionMaskedName?: string; pointsPerWinner?: number;
+  totalTickets?: number; winnerTicketIndex?: number; seed?: string;
+}
+interface DrawVerification { recomputedTotalTickets: number; recomputedWinnerIndex: number | null; matches: boolean }
 interface Pool { currentAmount: number; status: 'OPEN' | 'CLOSED' | 'DRAWN'; deadlineAt: string | null; periodStartedAt: string }
-interface Entry { id: string; ticketCount: number; appliedAt: string; user: { name: string; email: string } }
+interface Entry {
+  id: string; ticketCount: number; appliedAt: string;
+  user: { name: string; email: string };
+  institutionId?: string;
+  institution?: { name: string };
+}
 interface Certificate { id: string; orgName: string; amount: number; certificateDate: string; imageBase64: string | null; note: string | null }
 
 type Tab = 'draw' | 'tiers' | 'history' | 'donations';
@@ -25,6 +37,9 @@ export default function JackpotAdminPage() {
 
   // 구간 설정
   const [editTier, setEditTier] = useState<Partial<Tier> | null>(null);
+
+  // 추첨 검증
+  const [verifyResults, setVerifyResults] = useState<Record<string, DrawVerification | 'loading' | 'error'>>({});
 
   // 기부 증서
   const [certForm, setCertForm] = useState({ orgName: '', amount: '', certificateDate: '', note: '' });
@@ -110,6 +125,17 @@ export default function JackpotAdminPage() {
   const pool = status?.pool;
   const currentPrize = status?.currentPrize;
   const sortedTiers = [...(status?.tiers ?? [])].sort((a, b) => a.minAmount - b.minAmount);
+  const tiersLocked = pool ? pool.status !== 'OPEN' : false;
+
+  async function handleVerify(drawId: string) {
+    setVerifyResults((prev) => ({ ...prev, [drawId]: 'loading' }));
+    try {
+      const { data } = await adminApi.get(`/jackpot/admin/draws/${drawId}/verify`);
+      setVerifyResults((prev) => ({ ...prev, [drawId]: data }));
+    } catch {
+      setVerifyResults((prev) => ({ ...prev, [drawId]: 'error' }));
+    }
+  }
 
   const tabClass = (t: Tab) =>
     `px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === t ? 'bg-blue-600 text-white' : 'text-gray-600 hover:bg-gray-100'}`;
@@ -198,7 +224,8 @@ export default function JackpotAdminPage() {
                 <table className="w-full text-sm">
                   <thead className="text-xs text-gray-500">
                     <tr>
-                      <th className="pb-2 text-left">회원</th>
+                      <th className="pb-2 text-left">구분</th>
+                      <th className="pb-2 text-left">회원 / 기관</th>
                       <th className="pb-2 text-center">응모권</th>
                       <th className="pb-2 text-right">응모일시</th>
                     </tr>
@@ -207,8 +234,17 @@ export default function JackpotAdminPage() {
                     {entriesData?.entries?.map((e) => (
                       <tr key={e.id}>
                         <td className="py-1.5">
-                          <p className="font-medium text-gray-800">{e.user?.name}</p>
-                          <p className="text-xs text-gray-400">{e.user?.email}</p>
+                          {e.institutionId ? (
+                            <span className="flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-semibold text-indigo-600">
+                              <Building2 className="h-3 w-3" />기관
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">개인</span>
+                          )}
+                        </td>
+                        <td className="py-1.5">
+                          <p className="font-medium text-gray-800">{e.institutionId ? (e.institution?.name ?? '기관') : e.user?.name}</p>
+                          <p className="text-xs text-gray-400">{e.institutionId ? `대표 응모: ${e.user?.name}` : e.user?.email}</p>
                         </td>
                         <td className="py-1.5 text-center">
                           <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">{e.ticketCount}장</span>
@@ -255,8 +291,19 @@ export default function JackpotAdminPage() {
             <div className="rounded-xl border border-green-200 bg-green-50 p-5 text-center">
               <Trophy className="mx-auto mb-2 h-10 w-10 text-yellow-500" />
               <h3 className="text-lg font-bold text-green-800">🎉 추첨 완료!</h3>
-              <p className="mt-1 text-sm text-green-700">당첨자: <strong>{drawResult.winnerMaskedName}</strong></p>
-              {drawResult.prizeName && <p className="text-sm text-green-600">상품: {drawResult.prizeName}</p>}
+              {drawResult.winnerType === 'INSTITUTION' ? (
+                <>
+                  <p className="mt-1 text-sm text-green-700">
+                    기관 당첨: <strong>{drawResult.winnerInstitutionMaskedName}</strong>
+                  </p>
+                  <p className="text-sm text-green-600">지급 포인트: {formatWise(drawResult.pointsPerWinner ?? drawResult.totalAmount)}</p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-1 text-sm text-green-700">당첨자: <strong>{drawResult.winnerMaskedName}</strong></p>
+                  {drawResult.prizeName && <p className="text-sm text-green-600">상품: {drawResult.prizeName}</p>}
+                </>
+              )}
               <p className="mt-1 text-xs text-green-500">펀드 및 응모권이 초기화됐습니다.</p>
             </div>
           )}
@@ -270,11 +317,19 @@ export default function JackpotAdminPage() {
             <p className="text-sm text-gray-500">금액 구간마다 상품을 등록하세요. 펀드 금액에 따라 자동으로 상품이 결정됩니다.</p>
             <button
               onClick={() => setEditTier({ minAmount: 0, prizeName: '', prizeDescription: '', prizeImageUrl: '' })}
-              className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              disabled={tiersLocked}
+              className="flex items-center gap-1 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Plus className="h-4 w-4" /> 구간 추가
             </button>
           </div>
+
+          {tiersLocked && (
+            <div className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <AlertCircle className="h-4 w-4 flex-shrink-0" />
+              응모가 마감된 회차는 추첨 직전/직후 상품이 바뀌는 걸 막기 위해 상품 구간을 변경할 수 없습니다. 다음 회차가 시작되면 다시 편집할 수 있습니다.
+            </div>
+          )}
 
           {/* 편집 폼 */}
           {editTier && (
@@ -357,10 +412,17 @@ export default function JackpotAdminPage() {
                     </td>
                     <td className="px-4 py-3 text-center">
                       <div className="flex justify-center gap-1">
-                        <button onClick={() => setEditTier(tier)} className="rounded border px-2 py-1 text-xs hover:bg-gray-50">수정</button>
+                        <button
+                          onClick={() => setEditTier(tier)}
+                          disabled={tiersLocked}
+                          className="rounded border px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          수정
+                        </button>
                         <button
                           onClick={() => { if (confirm('삭제하시겠습니까?')) deleteTierMut.mutate(tier.id); }}
-                          className="rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+                          disabled={tiersLocked}
+                          className="rounded border border-red-200 px-2 py-1 text-xs text-red-500 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed"
                         >
                           <Trash2 className="h-3 w-3" />
                         </button>
@@ -387,19 +449,48 @@ export default function JackpotAdminPage() {
                 <th className="px-4 py-3 text-left">상품</th>
                 <th className="px-4 py-3 text-right">펀드 금액</th>
                 <th className="px-4 py-3 text-center">당첨자</th>
+                <th className="px-4 py-3 text-center">검증</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {drawHistory.map((d) => (
-                <tr key={d.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-500">{new Date(d.drawnAt).toLocaleDateString('ko-KR')}</td>
-                  <td className="px-4 py-3 font-medium">{d.prizeName ?? '-'}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-blue-600">{formatPrice(d.totalAmount)}</td>
-                  <td className="px-4 py-3 text-center text-gray-700">{d.winnerMaskedName ?? '-'}</td>
-                </tr>
-              ))}
+              {drawHistory.map((d) => {
+                const result = verifyResults[d.id];
+                return (
+                  <tr key={d.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 text-gray-500">{new Date(d.drawnAt).toLocaleDateString('ko-KR')}</td>
+                    <td className="px-4 py-3 font-medium">
+                      {d.winnerType === 'INSTITUTION' ? (
+                        <span className="inline-flex items-center gap-1 text-indigo-600">
+                          <Building2 className="h-3.5 w-3.5" />기관 포인트 {formatWise(d.pointsPerWinner ?? d.totalAmount)}
+                        </span>
+                      ) : (d.prizeName ?? '-')}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-blue-600">{formatPrice(d.totalAmount)}</td>
+                    <td className="px-4 py-3 text-center text-gray-700">
+                      {d.winnerType === 'INSTITUTION' ? (d.winnerInstitutionMaskedName ?? '-') : (d.winnerMaskedName ?? '-')}
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      {!d.seed ? (
+                        <span className="text-xs text-gray-300">검증데이터 없음</span>
+                      ) : !result ? (
+                        <button onClick={() => handleVerify(d.id)} className="rounded border px-2 py-1 text-xs hover:bg-gray-50">
+                          재계산
+                        </button>
+                      ) : result === 'loading' ? (
+                        <span className="text-xs text-gray-400">계산 중...</span>
+                      ) : result === 'error' ? (
+                        <span className="text-xs text-red-500">오류</span>
+                      ) : (
+                        <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${result.matches ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {result.matches ? '✓ 일치' : '✗ 불일치'}
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
               {drawHistory.length === 0 && (
-                <tr><td colSpan={4} className="px-4 py-8 text-center text-gray-400">추첨 이력이 없습니다.</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-gray-400">추첨 이력이 없습니다.</td></tr>
               )}
             </tbody>
           </table>

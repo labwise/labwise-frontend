@@ -3,15 +3,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatPrice } from '@/lib/utils';
-import { Trophy, Gift, Calendar } from 'lucide-react';
+import { Trophy, Gift, Calendar, Building2 } from 'lucide-react';
+import { formatWise } from '@/lib/utils';
 
 interface DrawRecord {
   id: string;
   drawnAt: string;
   totalAmount: number;
+  winnerType?: 'PERSONAL' | 'INSTITUTION';
   prizeName?: string;
   prizeImageUrl?: string;
   winnerMaskedName?: string;
+  winnerInstitutionMaskedName?: string;
+  pointsPerWinner?: number;
+  totalTickets?: number;
+  winnerTicketIndex?: number;
+  seed?: string;
 }
 
 export default function RaffleHistoryPage() {
@@ -67,7 +74,11 @@ export default function RaffleHistoryPage() {
 
               {/* 내용 */}
               <div className="flex flex-1 items-center gap-4 px-5 py-4">
-                {draw.prizeImageUrl ? (
+                {draw.winnerType === 'INSTITUTION' ? (
+                  <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-indigo-50 text-3xl">
+                    🏛️
+                  </div>
+                ) : draw.prizeImageUrl ? (
                   <img
                     src={draw.prizeImageUrl}
                     alt={draw.prizeName}
@@ -81,13 +92,22 @@ export default function RaffleHistoryPage() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">
-                      <Gift className="h-3 w-3" />
-                      {draw.prizeName ?? '상품'}
-                    </span>
+                    {draw.winnerType === 'INSTITUTION' ? (
+                      <span className="flex items-center gap-1 rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-semibold text-indigo-700">
+                        <Building2 className="h-3 w-3" />
+                        기관 포인트 {formatWise(draw.pointsPerWinner ?? draw.totalAmount)}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 rounded-full bg-yellow-100 px-2.5 py-0.5 text-xs font-semibold text-yellow-700">
+                        <Gift className="h-3 w-3" />
+                        {draw.prizeName ?? '상품'}
+                      </span>
+                    )}
                   </div>
                   <p className="mt-1.5 text-lg font-bold text-gray-900">
-                    🎉 {draw.winnerMaskedName ?? '???'} 님
+                    🎉 {draw.winnerType === 'INSTITUTION'
+                      ? `${draw.winnerInstitutionMaskedName ?? '???'} 기관`
+                      : `${draw.winnerMaskedName ?? '???'} 님`}
                   </p>
                   <div className="mt-1 flex items-center gap-3 text-xs text-gray-400">
                     <span className="flex items-center gap-1">
@@ -109,6 +129,11 @@ export default function RaffleHistoryPage() {
               <p className="text-[11px] text-gray-400">
                 구매금액의 1.5%가 자동 적립된 펀드로 추첨되었습니다
               </p>
+              {draw.seed && (
+                <p className="mt-1 truncate text-[10px] text-gray-300" title={`검증 시드: ${draw.seed}`}>
+                  검증코드 {draw.seed.slice(0, 12)}… · 발행 응모권 {draw.totalTickets?.toLocaleString()}장 · 당첨 인덱스 {draw.winnerTicketIndex}
+                </p>
+              )}
             </div>
           </div>
         ))}

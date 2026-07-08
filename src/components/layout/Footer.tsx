@@ -35,7 +35,7 @@ export function Footer() {
   return (
     <footer className="border-t border-gray-200 bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
+        <div className="grid grid-cols-2 gap-8 md:grid-cols-5">
           <div>
             <h3 className="mb-3 text-sm font-semibold text-gray-900">고객 지원</h3>
             <ul className="space-y-2 text-sm text-gray-500">
@@ -54,7 +54,12 @@ export function Footer() {
             <h3 className="mb-3 text-sm font-semibold text-gray-900">사회적 책임</h3>
             <ul className="space-y-2 text-sm text-gray-500">
               <li><Link href="/donations" className="hover:text-green-600">기부 내역</Link></li>
-              <li><Link href="/terms" className="hover:text-blue-600">이용약관</Link></li>
+            </ul>
+          </div>
+          <div>
+            <h3 className="mb-3 text-sm font-semibold text-gray-900">약관 및 정책</h3>
+            <ul className="space-y-2 text-sm text-gray-500">
+              <li><Link href="/terms/service" className="hover:text-blue-600">이용약관</Link></li>
               <li><Link href="/terms/privacy" className="hover:text-blue-600">개인정보처리방침</Link></li>
             </ul>
           </div>
