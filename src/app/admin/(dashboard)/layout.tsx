@@ -31,6 +31,7 @@ import {
   Settings,
   FileText,
   Building2,
+  Calculator,
 } from 'lucide-react';
 
 interface NavLeaf { href: string; label: string; icon: React.ElementType; exact?: boolean; }
@@ -54,6 +55,7 @@ const navGroups: NavGroup[] = [
       { href: '/admin/orders', label: '주문 관리', icon: ShoppingCart },
       { href: '/admin/estimates', label: '견적서 내역', icon: FileText },
       { href: '/admin/featured', label: '추천 상품', icon: Star },
+      { href: '/admin/cost-calculator', label: '원가 계산기', icon: Calculator },
     ],
   },
   {
