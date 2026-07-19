@@ -23,6 +23,7 @@ interface SourcingItem {
   customsRate: number;
   intlLogistics: number;
   domesticShipping: number;
+  quantity: number;
   pgFeeRate: number;
   wisePointRate: number;
   fundDonationRate: number;
@@ -52,6 +53,7 @@ const DEFAULTS = {
   customsRate: '8',
   intlLogistics: '',
   domesticShipping: '3000',
+  quantity: '1',
   pgFeeRate: '2.5',
   wisePointRate: '12',
   fundDonationRate: '3',
@@ -68,6 +70,7 @@ export default function CostCalculatorPage() {
   const [customsRate, setCustomsRate] = useState(DEFAULTS.customsRate);
   const [intlLogistics, setIntlLogistics] = useState(DEFAULTS.intlLogistics);
   const [domesticShipping, setDomesticShipping] = useState(DEFAULTS.domesticShipping);
+  const [quantity, setQuantity] = useState(DEFAULTS.quantity);
   const [pgFeeRate, setPgFeeRate] = useState(DEFAULTS.pgFeeRate);
   const [wisePointRate, setWisePointRate] = useState(DEFAULTS.wisePointRate);
   const [fundDonationRate, setFundDonationRate] = useState(DEFAULTS.fundDonationRate);
@@ -106,8 +109,15 @@ export default function CostCalculatorPage() {
 
   const calc = useMemo(() => {
     const sourcingKRW = num(sourcingAmount) * effectiveRate;
-    const customsKRW = sourcingKRW * (num(customsRate) / 100);
-    const fixedCost = sourcingKRW + customsKRW + num(intlLogistics) + num(domesticShipping);
+    // 국제 물류비도 소싱과 같은 통화로 청구되는 경우가 많아 동일 환율을 적용해 환산한다.
+    const intlLogisticsKRW = num(intlLogistics) * effectiveRate;
+    // 관부가세는 상품가만이 아니라 국제운임을 포함한 CIF 금액 기준으로 부과된다.
+    const cifBase = sourcingKRW + intlLogisticsKRW;
+    const customsKRW = cifBase * (num(customsRate) / 100);
+    const batchCost = sourcingKRW + intlLogisticsKRW + customsKRW + num(domesticShipping);
+    // 한 번에 여러 개를 소싱하므로 총 원가를 수량으로 나눠 개당 원가를 구한다.
+    const qty = Math.max(1, num(quantity));
+    const fixedCost = batchCost / qty;
 
     const revenueRate = num(pgFeeRate) + num(wisePointRate) + num(fundDonationRate);
     const marginRate = num(targetMargin);
@@ -116,8 +126,8 @@ export default function CostCalculatorPage() {
     const suggestedPriceRaw = denom > 0 ? fixedCost / denom : null;
     const suggestedPrice = suggestedPriceRaw !== null ? Math.ceil(suggestedPriceRaw / 10) * 10 : null;
 
-    return { sourcingKRW, customsKRW, fixedCost, revenueRate, denomInvalid: denom <= 0, suggestedPrice };
-  }, [sourcingAmount, effectiveRate, customsRate, intlLogistics, domesticShipping, pgFeeRate, wisePointRate, fundDonationRate, targetMargin]);
+    return { sourcingKRW, intlLogisticsKRW, cifBase, customsKRW, batchCost, qty, fixedCost, revenueRate, denomInvalid: denom <= 0, suggestedPrice };
+  }, [sourcingAmount, effectiveRate, customsRate, intlLogistics, domesticShipping, quantity, pgFeeRate, wisePointRate, fundDonationRate, targetMargin]);
 
   const check = useMemo(() => {
     const price = num(checkPrice);
@@ -143,6 +153,7 @@ export default function CostCalculatorPage() {
     setCustomsRate(DEFAULTS.customsRate);
     setIntlLogistics(DEFAULTS.intlLogistics);
     setDomesticShipping(DEFAULTS.domesticShipping);
+    setQuantity(DEFAULTS.quantity);
     setPgFeeRate(DEFAULTS.pgFeeRate);
     setWisePointRate(DEFAULTS.wisePointRate);
     setFundDonationRate(DEFAULTS.fundDonationRate);
@@ -163,6 +174,7 @@ export default function CostCalculatorPage() {
     setCustomsRate(String(item.customsRate));
     setIntlLogistics(String(item.intlLogistics));
     setDomesticShipping(String(item.domesticShipping));
+    setQuantity(String(item.quantity ?? 1));
     setPgFeeRate(String(item.pgFeeRate));
     setWisePointRate(String(item.wisePointRate));
     setFundDonationRate(String(item.fundDonationRate));
@@ -186,6 +198,7 @@ export default function CostCalculatorPage() {
         customsRate: num(customsRate),
         intlLogistics: num(intlLogistics),
         domesticShipping: num(domesticShipping),
+        quantity: calc.qty,
         pgFeeRate: num(pgFeeRate),
         wisePointRate: num(wisePointRate),
         fundDonationRate: num(fundDonationRate),
@@ -271,24 +284,30 @@ export default function CostCalculatorPage() {
                     type="number" min="0" placeholder="예: 190" className={inputClass() + (currency === 'KRW' ? ' bg-gray-50 text-gray-400' : '')} />
                 </div>
               </div>
-              <p className="text-xs text-gray-400">환율은 실시간 조회 없이 직접 입력합니다. 결제/송금 시점 고시 환율을 확인해 입력하세요.</p>
               <div>
-                <label className="mb-1 block text-xs text-gray-500">관부가세율 (%, 소싱원가 환산액 기준)</label>
+                <label className="mb-1 block text-xs text-gray-500">국제 물류비 ({currency})</label>
+                <input value={intlLogistics} onChange={(e) => setIntlLogistics(e.target.value)}
+                  type="number" min="0" placeholder="0" className={inputClass()} />
+              </div>
+              <p className="text-xs text-gray-400">환율은 실시간 조회 없이 직접 입력합니다. 소싱 금액·국제 물류비 모두 결제/송금 시점 고시 환율을 확인해 입력하세요.</p>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">관부가세율 (%, CIF 기준: 소싱원가+국제물류비 환산액)</label>
                 <input value={customsRate} onChange={(e) => setCustomsRate(e.target.value)}
                   type="number" min="0" step="0.1" className={inputClass()} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs text-gray-500">국제 물류비 (원)</label>
-                  <input value={intlLogistics} onChange={(e) => setIntlLogistics(e.target.value)}
-                    type="number" min="0" placeholder="0" className={inputClass()} />
-                </div>
-                <div>
                   <label className="mb-1 block text-xs text-gray-500">국내 배송비 (원)</label>
                   <input value={domesticShipping} onChange={(e) => setDomesticShipping(e.target.value)}
                     type="number" min="0" className={inputClass()} />
                 </div>
+                <div>
+                  <label className="mb-1 block text-xs text-gray-500">소싱 수량 (개)</label>
+                  <input value={quantity} onChange={(e) => setQuantity(e.target.value)}
+                    type="number" min="1" step="1" className={inputClass()} />
+                </div>
               </div>
+              <p className="text-xs text-gray-400">위 총 원가(소싱원가+관부가세+물류비+배송비)를 소싱 수량으로 나눠 개당 원가를 계산합니다.</p>
               <div>
                 <label className="mb-1 block text-xs text-gray-500">메모 (선택)</label>
                 <input value={memo} onChange={(e) => setMemo(e.target.value)}
@@ -403,10 +422,11 @@ export default function CostCalculatorPage() {
             )}
             <div className="mt-4 space-y-1 border-t border-blue-200 pt-3 text-xs text-blue-800">
               <div className="flex justify-between"><span>소싱 원가 (환산)</span><span>{won(calc.sourcingKRW)}</span></div>
-              <div className="flex justify-between"><span>관부가세</span><span>{won(calc.customsKRW)}</span></div>
-              <div className="flex justify-between"><span>국제 물류비</span><span>{won(num(intlLogistics))}</span></div>
+              <div className="flex justify-between"><span>국제 물류비 (환산)</span><span>{won(calc.intlLogisticsKRW)}</span></div>
+              <div className="flex justify-between"><span>관부가세 (CIF {won(calc.cifBase)} 기준)</span><span>{won(calc.customsKRW)}</span></div>
               <div className="flex justify-between"><span>국내 배송비</span><span>{won(num(domesticShipping))}</span></div>
-              <div className="flex justify-between font-semibold"><span>총 고정비용 (원가)</span><span>{won(calc.fixedCost)}</span></div>
+              <div className="flex justify-between font-semibold"><span>총 원가 ({calc.qty}개)</span><span>{won(calc.batchCost)}</span></div>
+              <div className="flex justify-between border-t border-blue-200 pt-1 font-semibold"><span>개당 원가</span><span>{won(calc.fixedCost)}</span></div>
             </div>
           </section>
 
@@ -419,8 +439,8 @@ export default function CostCalculatorPage() {
             </div>
             {check ? (
               <div className="space-y-1 rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
-                <div className="flex justify-between"><span>판매가</span><span>{won(check.price)}</span></div>
-                <div className="flex justify-between"><span>총 고정비용</span><span>-{won(calc.fixedCost)}</span></div>
+                <div className="flex justify-between"><span>판매가 (개당)</span><span>{won(check.price)}</span></div>
+                <div className="flex justify-between"><span>개당 원가</span><span>-{won(calc.fixedCost)}</span></div>
                 <div className="flex justify-between"><span>PG 수수료</span><span>-{won(check.pgFeeKRW)}</span></div>
                 <div className="flex justify-between"><span>와이즈 포인트 적립</span><span>-{won(check.wisePointKRW)}</span></div>
                 <div className="flex justify-between"><span>감사펀드+기부 적립</span><span>-{won(check.fundKRW)}</span></div>
@@ -454,7 +474,8 @@ export default function CostCalculatorPage() {
                 <tr className="border-b border-gray-100 text-left text-xs text-gray-400">
                   <th className="pb-2 font-medium">이름</th>
                   <th className="pb-2 font-medium">연동 상품</th>
-                  <th className="pb-2 font-medium">원가</th>
+                  <th className="pb-2 font-medium">수량</th>
+                  <th className="pb-2 font-medium">개당 원가</th>
                   <th className="pb-2 font-medium">권장 판매가</th>
                   <th className="pb-2 font-medium">수정일</th>
                   <th className="pb-2 font-medium"></th>
@@ -469,6 +490,7 @@ export default function CostCalculatorPage() {
                         ? <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700"><Link2 size={11} /> {item.product.name}</span>
                         : <span className="text-xs text-gray-300">미연동</span>}
                     </td>
+                    <td className="py-2.5">{item.quantity ?? 1}개</td>
                     <td className="py-2.5">{won(item.unitCostKrw)}</td>
                     <td className="py-2.5">{item.suggestedPrice ? won(item.suggestedPrice) : '-'}</td>
                     <td className="py-2.5 text-xs text-gray-400">{new Date(item.updatedAt).toLocaleDateString('ko-KR')}</td>
