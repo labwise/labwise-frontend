@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import adminApi from '@/lib/admin-api';
-import { Users, ShoppingCart, DollarSign, Package, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Users, ShoppingCart, DollarSign, Package, ChevronRight, AlertTriangle, TrendingUp, Calculator } from 'lucide-react';
 
 interface SiteConfig {
   companyName?: string; ceoName?: string; businessNumber?: string;
@@ -16,6 +16,17 @@ const REQUIRED_LEGAL_FIELDS: { key: keyof SiteConfig; label: string }[] = [
   { key: 'address', label: '사업장 주소' },
   { key: 'mailOrderNumber', label: '통신판매업 신고번호' },
 ];
+
+interface ProfitSummary {
+  revenue: number;
+  cost: number;
+  pgFeeCost: number;
+  pgFeeRate: number;
+  pointsCost: number;
+  jackpotDonationCost: number;
+  netProfit: number;
+  marginRate: number;
+}
 
 interface Stats {
   totalUsers: number;
@@ -32,6 +43,7 @@ interface Stats {
     CANCELLED: number;
     REFUNDED: number;
   };
+  profitSummary?: ProfitSummary;
 }
 
 function StatCard({
@@ -185,6 +197,64 @@ export default function DashboardPage() {
           })}
         </div>
       </div>
+
+      {/* 순수익 */}
+      {stats.profitSummary && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={18} className="text-emerald-600" />
+              <h2 className="font-semibold text-gray-900">실질 순수익</h2>
+              <span className="text-xs text-gray-400">구매확정 주문 기준</span>
+            </div>
+            <Link
+              href="/admin/cost-calculator"
+              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
+            >
+              <Calculator size={14} /> 원가 계산기
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-6 px-5 py-5 md:grid-cols-3">
+            <div>
+              <p className="text-xs text-gray-400">매출</p>
+              <p className="mt-1 text-lg font-bold text-gray-900">{stats.profitSummary.revenue.toLocaleString()}원</p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">순수익</p>
+              <p className={`mt-1 text-lg font-bold ${stats.profitSummary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {stats.profitSummary.netProfit.toLocaleString()}원
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-gray-400">순마진율</p>
+              <p className={`mt-1 text-lg font-bold ${stats.profitSummary.marginRate >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                {stats.profitSummary.marginRate}%
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 border-t border-gray-100 px-5 py-4 text-xs text-gray-500 md:grid-cols-4">
+            <div className="flex justify-between md:block">
+              <span>원가</span>
+              <span className="font-medium text-gray-700 md:mt-0.5 md:block">-{stats.profitSummary.cost.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between md:block">
+              <span>PG 수수료 (추정 {stats.profitSummary.pgFeeRate}%)</span>
+              <span className="font-medium text-gray-700 md:mt-0.5 md:block">-{stats.profitSummary.pgFeeCost.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between md:block">
+              <span>와이즈 포인트 적립</span>
+              <span className="font-medium text-gray-700 md:mt-0.5 md:block">-{stats.profitSummary.pointsCost.toLocaleString()}원</span>
+            </div>
+            <div className="flex justify-between md:block">
+              <span>감사펀드+기부 (3%)</span>
+              <span className="font-medium text-gray-700 md:mt-0.5 md:block">-{stats.profitSummary.jackpotDonationCost.toLocaleString()}원</span>
+            </div>
+          </div>
+          <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-400">
+            PG 수수료는 결제사에서 거래별 수수료를 제공하지 않아 추정 요율로 계산됩니다. 원가는 상품별 공급가(costPrice)가 입력된 항목만 반영됩니다 — 원가 계산기에서 상품을 연동해두면 자동 반영됩니다.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
