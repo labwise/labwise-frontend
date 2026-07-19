@@ -108,16 +108,19 @@ export default function CostCalculatorPage() {
   const effectiveRate = currency === 'KRW' ? 1 : num(exchangeRate);
 
   const calc = useMemo(() => {
-    const sourcingKRW = num(sourcingAmount) * effectiveRate;
+    const qty = Math.max(1, num(quantity));
+    // 소싱 금액은 개당 단가로 입력받는다 — 총 소싱금액은 단가 × 수량으로 계산.
+    const unitPriceKRW = num(sourcingAmount) * effectiveRate;
+    const totalSourcingKRW = unitPriceKRW * qty;
     // 국제 물류비도 소싱과 같은 통화로 청구되는 경우가 많아 동일 환율을 적용해 환산한다.
     const intlLogisticsKRW = num(intlLogistics) * effectiveRate;
-    // 관부가세는 상품가만이 아니라 국제운임을 포함한 CIF 금액 기준으로 부과된다.
-    const cifBase = sourcingKRW + intlLogisticsKRW;
+    // 관부가세는 상품가만이 아니라 국제운임을 포함한 CIF 총액 기준으로 부과된다.
+    const cifBase = totalSourcingKRW + intlLogisticsKRW;
     const customsKRW = cifBase * (num(customsRate) / 100);
-    const batchCost = sourcingKRW + intlLogisticsKRW + customsKRW + num(domesticShipping);
-    // 한 번에 여러 개를 소싱하므로 총 원가를 수량으로 나눠 개당 원가를 구한다.
-    const qty = Math.max(1, num(quantity));
-    const fixedCost = batchCost / qty;
+    // 물류비·관부가세·국내배송비는 수량과 무관한 배치(batch) 단위 비용이므로 수량으로 나눠 개당 비용을 구한다.
+    const batchExtras = intlLogisticsKRW + customsKRW + num(domesticShipping);
+    const batchCost = totalSourcingKRW + batchExtras;
+    const fixedCost = unitPriceKRW + batchExtras / qty;
 
     const revenueRate = num(pgFeeRate) + num(wisePointRate) + num(fundDonationRate);
     const marginRate = num(targetMargin);
@@ -126,7 +129,7 @@ export default function CostCalculatorPage() {
     const suggestedPriceRaw = denom > 0 ? fixedCost / denom : null;
     const suggestedPrice = suggestedPriceRaw !== null ? Math.ceil(suggestedPriceRaw / 10) * 10 : null;
 
-    return { sourcingKRW, intlLogisticsKRW, cifBase, customsKRW, batchCost, qty, fixedCost, revenueRate, denomInvalid: denom <= 0, suggestedPrice };
+    return { unitPriceKRW, totalSourcingKRW, intlLogisticsKRW, cifBase, customsKRW, batchExtras, batchCost, qty, fixedCost, revenueRate, denomInvalid: denom <= 0, suggestedPrice };
   }, [sourcingAmount, effectiveRate, customsRate, intlLogistics, domesticShipping, quantity, pgFeeRate, wisePointRate, fundDonationRate, targetMargin]);
 
   const check = useMemo(() => {
@@ -270,36 +273,9 @@ export default function CostCalculatorPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="mb-1 block text-xs text-gray-500">소싱 금액 ({currency})</label>
+                  <label className="mb-1 block text-xs text-gray-500">소싱 단가 ({currency}, 개당)</label>
                   <input value={sourcingAmount} onChange={(e) => setSourcingAmount(e.target.value)}
                     type="number" min="0" placeholder="0" className={inputClass()} />
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs text-gray-500">
-                    환율 (1{currency} = ?원)
-                  </label>
-                  <input value={currency === 'KRW' ? '1' : exchangeRate}
-                    onChange={(e) => setExchangeRate(e.target.value)}
-                    disabled={currency === 'KRW'}
-                    type="number" min="0" placeholder="예: 190" className={inputClass() + (currency === 'KRW' ? ' bg-gray-50 text-gray-400' : '')} />
-                </div>
-              </div>
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">국제 물류비 ({currency})</label>
-                <input value={intlLogistics} onChange={(e) => setIntlLogistics(e.target.value)}
-                  type="number" min="0" placeholder="0" className={inputClass()} />
-              </div>
-              <p className="text-xs text-gray-400">환율은 실시간 조회 없이 직접 입력합니다. 소싱 금액·국제 물류비 모두 결제/송금 시점 고시 환율을 확인해 입력하세요.</p>
-              <div>
-                <label className="mb-1 block text-xs text-gray-500">관부가세율 (%, CIF 기준: 소싱원가+국제물류비 환산액)</label>
-                <input value={customsRate} onChange={(e) => setCustomsRate(e.target.value)}
-                  type="number" min="0" step="0.1" className={inputClass()} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="mb-1 block text-xs text-gray-500">국내 배송비 (원)</label>
-                  <input value={domesticShipping} onChange={(e) => setDomesticShipping(e.target.value)}
-                    type="number" min="0" className={inputClass()} />
                 </div>
                 <div>
                   <label className="mb-1 block text-xs text-gray-500">소싱 수량 (개)</label>
@@ -307,7 +283,32 @@ export default function CostCalculatorPage() {
                     type="number" min="1" step="1" className={inputClass()} />
                 </div>
               </div>
-              <p className="text-xs text-gray-400">위 총 원가(소싱원가+관부가세+물류비+배송비)를 소싱 수량으로 나눠 개당 원가를 계산합니다.</p>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">
+                  환율 (1{currency} = ?원)
+                </label>
+                <input value={currency === 'KRW' ? '1' : exchangeRate}
+                  onChange={(e) => setExchangeRate(e.target.value)}
+                  disabled={currency === 'KRW'}
+                  type="number" min="0" placeholder="예: 190" className={inputClass() + (currency === 'KRW' ? ' bg-gray-50 text-gray-400' : '')} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">국제 물류비 ({currency}, 이번 소싱 전체 배송비 합계)</label>
+                <input value={intlLogistics} onChange={(e) => setIntlLogistics(e.target.value)}
+                  type="number" min="0" placeholder="0" className={inputClass()} />
+              </div>
+              <p className="text-xs text-gray-400">환율은 실시간 조회 없이 직접 입력합니다. 소싱 단가·국제 물류비 모두 결제/송금 시점 고시 환율을 확인해 입력하세요.</p>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">관부가세율 (%, CIF 기준: 총 소싱금액+국제물류비 환산액)</label>
+                <input value={customsRate} onChange={(e) => setCustomsRate(e.target.value)}
+                  type="number" min="0" step="0.1" className={inputClass()} />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs text-gray-500">국내 배송비 (원)</label>
+                <input value={domesticShipping} onChange={(e) => setDomesticShipping(e.target.value)}
+                  type="number" min="0" className={inputClass()} />
+              </div>
+              <p className="text-xs text-gray-400">개당 원가 = 소싱 단가 + (국제물류비+관부가세+국내배송비) ÷ 소싱 수량</p>
               <div>
                 <label className="mb-1 block text-xs text-gray-500">메모 (선택)</label>
                 <input value={memo} onChange={(e) => setMemo(e.target.value)}
@@ -421,7 +422,8 @@ export default function CostCalculatorPage() {
               </>
             )}
             <div className="mt-4 space-y-1 border-t border-blue-200 pt-3 text-xs text-blue-800">
-              <div className="flex justify-between"><span>소싱 원가 (환산)</span><span>{won(calc.sourcingKRW)}</span></div>
+              <div className="flex justify-between"><span>소싱 단가 (환산)</span><span>{won(calc.unitPriceKRW)}</span></div>
+              <div className="flex justify-between"><span>총 소싱금액 ({calc.qty}개)</span><span>{won(calc.totalSourcingKRW)}</span></div>
               <div className="flex justify-between"><span>국제 물류비 (환산)</span><span>{won(calc.intlLogisticsKRW)}</span></div>
               <div className="flex justify-between"><span>관부가세 (CIF {won(calc.cifBase)} 기준)</span><span>{won(calc.customsKRW)}</span></div>
               <div className="flex justify-between"><span>국내 배송비</span><span>{won(num(domesticShipping))}</span></div>
