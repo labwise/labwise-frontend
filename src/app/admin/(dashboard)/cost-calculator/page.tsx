@@ -14,6 +14,8 @@ const CURRENCY_LABEL: Record<Currency, string> = {
 };
 
 interface ProductSearchResult { id: string; name: string; sku?: string; }
+interface OtherCostRow { label: string; currency: Currency; amount: string; exchangeRate: string; }
+interface OtherCostSaved { label: string; currency: string; amount: number; exchangeRate: number; }
 interface SourcingItem {
   id: string;
   name: string;
@@ -24,6 +26,7 @@ interface SourcingItem {
   intlLogistics: number;
   domesticShipping: number;
   quantity: number;
+  otherCosts?: OtherCostSaved[];
   pgFeeRate: number;
   wisePointRate: number;
   fundDonationRate: number;
@@ -71,6 +74,7 @@ export default function CostCalculatorPage() {
   const [intlLogistics, setIntlLogistics] = useState(DEFAULTS.intlLogistics);
   const [domesticShipping, setDomesticShipping] = useState(DEFAULTS.domesticShipping);
   const [quantity, setQuantity] = useState(DEFAULTS.quantity);
+  const [otherCosts, setOtherCosts] = useState<OtherCostRow[]>([]);
   const [pgFeeRate, setPgFeeRate] = useState(DEFAULTS.pgFeeRate);
   const [wisePointRate, setWisePointRate] = useState(DEFAULTS.wisePointRate);
   const [fundDonationRate, setFundDonationRate] = useState(DEFAULTS.fundDonationRate);
@@ -117,8 +121,13 @@ export default function CostCalculatorPage() {
     // 관부가세는 상품가만이 아니라 국제운임을 포함한 CIF 총액 기준으로 부과된다.
     const cifBase = totalSourcingKRW + intlLogisticsKRW;
     const customsKRW = cifBase * (num(customsRate) / 100);
-    // 물류비·관부가세·국내배송비는 수량과 무관한 배치(batch) 단위 비용이므로 수량으로 나눠 개당 비용을 구한다.
-    const batchExtras = intlLogisticsKRW + customsKRW + num(domesticShipping);
+    // 기타 비용(수수료 등)은 항목마다 통화가 다를 수 있어 항목별 환율로 각각 환산한다.
+    const otherCostsKRW = otherCosts.reduce((sum, oc) => {
+      const rate = oc.currency === 'KRW' ? 1 : num(oc.exchangeRate);
+      return sum + num(oc.amount) * rate;
+    }, 0);
+    // 물류비·관부가세·국내배송비·기타비용은 수량과 무관한 배치(batch) 단위 비용이므로 수량으로 나눠 개당 비용을 구한다.
+    const batchExtras = intlLogisticsKRW + customsKRW + num(domesticShipping) + otherCostsKRW;
     const batchCost = totalSourcingKRW + batchExtras;
     const fixedCost = unitPriceKRW + batchExtras / qty;
 
@@ -129,8 +138,8 @@ export default function CostCalculatorPage() {
     const suggestedPriceRaw = denom > 0 ? fixedCost / denom : null;
     const suggestedPrice = suggestedPriceRaw !== null ? Math.ceil(suggestedPriceRaw / 10) * 10 : null;
 
-    return { unitPriceKRW, totalSourcingKRW, intlLogisticsKRW, cifBase, customsKRW, batchExtras, batchCost, qty, fixedCost, revenueRate, denomInvalid: denom <= 0, suggestedPrice };
-  }, [sourcingAmount, effectiveRate, customsRate, intlLogistics, domesticShipping, quantity, pgFeeRate, wisePointRate, fundDonationRate, targetMargin]);
+    return { unitPriceKRW, totalSourcingKRW, intlLogisticsKRW, cifBase, customsKRW, otherCostsKRW, batchExtras, batchCost, qty, fixedCost, revenueRate, denomInvalid: denom <= 0, suggestedPrice };
+  }, [sourcingAmount, effectiveRate, customsRate, intlLogistics, domesticShipping, quantity, otherCosts, pgFeeRate, wisePointRate, fundDonationRate, targetMargin]);
 
   const check = useMemo(() => {
     const price = num(checkPrice);
@@ -147,6 +156,18 @@ export default function CostCalculatorPage() {
     return 'w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none';
   }
 
+  function addOtherCost() {
+    setOtherCosts((prev) => [...prev, { label: '', currency: 'KRW', amount: '', exchangeRate: '' }]);
+  }
+
+  function updateOtherCost(index: number, patch: Partial<OtherCostRow>) {
+    setOtherCosts((prev) => prev.map((oc, i) => (i === index ? { ...oc, ...patch } : oc)));
+  }
+
+  function removeOtherCost(index: number) {
+    setOtherCosts((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function resetForm() {
     setEditingId(null);
     setName(DEFAULTS.name);
@@ -157,6 +178,7 @@ export default function CostCalculatorPage() {
     setIntlLogistics(DEFAULTS.intlLogistics);
     setDomesticShipping(DEFAULTS.domesticShipping);
     setQuantity(DEFAULTS.quantity);
+    setOtherCosts([]);
     setPgFeeRate(DEFAULTS.pgFeeRate);
     setWisePointRate(DEFAULTS.wisePointRate);
     setFundDonationRate(DEFAULTS.fundDonationRate);
@@ -178,6 +200,12 @@ export default function CostCalculatorPage() {
     setIntlLogistics(String(item.intlLogistics));
     setDomesticShipping(String(item.domesticShipping));
     setQuantity(String(item.quantity ?? 1));
+    setOtherCosts((item.otherCosts ?? []).map((oc) => ({
+      label: oc.label,
+      currency: oc.currency as Currency,
+      amount: String(oc.amount),
+      exchangeRate: String(oc.exchangeRate),
+    })));
     setPgFeeRate(String(item.pgFeeRate));
     setWisePointRate(String(item.wisePointRate));
     setFundDonationRate(String(item.fundDonationRate));
@@ -202,6 +230,14 @@ export default function CostCalculatorPage() {
         intlLogistics: num(intlLogistics),
         domesticShipping: num(domesticShipping),
         quantity: calc.qty,
+        otherCosts: otherCosts
+          .filter((oc) => oc.label.trim() && num(oc.amount) > 0)
+          .map((oc) => ({
+            label: oc.label.trim(),
+            currency: oc.currency,
+            amount: num(oc.amount),
+            exchangeRate: oc.currency === 'KRW' ? 1 : num(oc.exchangeRate),
+          })),
         pgFeeRate: num(pgFeeRate),
         wisePointRate: num(wisePointRate),
         fundDonationRate: num(fundDonationRate),
@@ -308,7 +344,57 @@ export default function CostCalculatorPage() {
                 <input value={domesticShipping} onChange={(e) => setDomesticShipping(e.target.value)}
                   type="number" min="0" className={inputClass()} />
               </div>
-              <p className="text-xs text-gray-400">개당 원가 = 소싱 단가 + (국제물류비+관부가세+국내배송비) ÷ 소싱 수량</p>
+
+              <div className="border-t border-gray-100 pt-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="block text-xs text-gray-500">기타 비용 (수수료 등, 선택)</label>
+                  <button type="button" onClick={addOtherCost} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700">
+                    <Plus size={12} /> 항목 추가
+                  </button>
+                </div>
+                {otherCosts.length > 0 && (
+                  <div className="space-y-2">
+                    {otherCosts.map((oc, i) => (
+                      <div key={i} className="flex items-center gap-1.5">
+                        <input
+                          value={oc.label}
+                          onChange={(e) => updateOtherCost(i, { label: e.target.value })}
+                          placeholder="예: 포워딩 수수료"
+                          className="min-w-0 flex-1 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
+                        />
+                        <select
+                          value={oc.currency}
+                          onChange={(e) => updateOtherCost(i, { currency: e.target.value as Currency })}
+                          className="w-20 rounded-lg border border-gray-300 px-1.5 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
+                        >
+                          {(Object.keys(CURRENCY_LABEL) as Currency[]).map((c) => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                        </select>
+                        <input
+                          value={oc.amount}
+                          onChange={(e) => updateOtherCost(i, { amount: e.target.value })}
+                          type="number" min="0" placeholder="금액"
+                          className="w-20 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none"
+                        />
+                        <input
+                          value={oc.currency === 'KRW' ? '1' : oc.exchangeRate}
+                          onChange={(e) => updateOtherCost(i, { exchangeRate: e.target.value })}
+                          disabled={oc.currency === 'KRW'}
+                          type="number" min="0" placeholder="환율"
+                          className={'w-16 rounded-lg border border-gray-300 px-2 py-1.5 text-xs focus:border-blue-500 focus:outline-none' + (oc.currency === 'KRW' ? ' bg-gray-50 text-gray-400' : '')}
+                        />
+                        <button type="button" onClick={() => removeOtherCost(i)} className="shrink-0 text-gray-300 hover:text-red-500">
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="mt-2 text-xs text-gray-400">항목별로 통화가 다르면 해당 통화 환율을 각각 입력하세요. 원화(KRW)는 환율 입력이 필요 없습니다.</p>
+              </div>
+
+              <p className="text-xs text-gray-400">개당 원가 = 소싱 단가 + (국제물류비+관부가세+국내배송비+기타비용) ÷ 소싱 수량</p>
               <div>
                 <label className="mb-1 block text-xs text-gray-500">메모 (선택)</label>
                 <input value={memo} onChange={(e) => setMemo(e.target.value)}
@@ -427,6 +513,9 @@ export default function CostCalculatorPage() {
               <div className="flex justify-between"><span>국제 물류비 (환산)</span><span>{won(calc.intlLogisticsKRW)}</span></div>
               <div className="flex justify-between"><span>관부가세 (CIF {won(calc.cifBase)} 기준)</span><span>{won(calc.customsKRW)}</span></div>
               <div className="flex justify-between"><span>국내 배송비</span><span>{won(num(domesticShipping))}</span></div>
+              {calc.otherCostsKRW > 0 && (
+                <div className="flex justify-between"><span>기타 비용 (환산 합계)</span><span>{won(calc.otherCostsKRW)}</span></div>
+              )}
               <div className="flex justify-between font-semibold"><span>총 원가 ({calc.qty}개)</span><span>{won(calc.batchCost)}</span></div>
               <div className="flex justify-between border-t border-blue-200 pt-1 font-semibold"><span>개당 원가</span><span>{won(calc.fixedCost)}</span></div>
             </div>
