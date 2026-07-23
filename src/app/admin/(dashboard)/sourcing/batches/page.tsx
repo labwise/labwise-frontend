@@ -10,6 +10,18 @@ interface SourcingProduct {
   sourcingCode?: string;
 }
 
+interface OpeningItem {
+  id: string;
+  productId: string;
+  product?: { id: string; name: string };
+  unitCostKrw: number;
+  quantityAvailable: number;
+  quantityReserved: number;
+  quantityShipped: number;
+  isUnknownCost: boolean;
+  createdAt: string;
+}
+
 interface CostItem {
   type: string;
   label: string;
@@ -42,7 +54,7 @@ interface SourcingBatch {
   orderedAt?: string;
   confirmedAt?: string;
   notes?: string;
-  receiptItem?: { id: string; quantityAvailable: number } | null;
+  receiptItem?: { id: string; quantityAvailable: number; isUnknownCost?: boolean; isOpening?: boolean } | null;
   createdAt: string;
 }
 
@@ -95,6 +107,7 @@ const EMPTY_FORM = {
 export default function SourcingBatchesPage() {
   const [batches, setBatches] = useState<SourcingBatch[]>([]);
   const [products, setProducts] = useState<SourcingProduct[]>([]);
+  const [openingItems, setOpeningItems] = useState<OpeningItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterProductId, setFilterProductId] = useState('');
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -104,6 +117,11 @@ export default function SourcingBatchesPage() {
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [confirmQty, setConfirmQty] = useState('');
   const [error, setError] = useState('');
+  const [correctId, setCorrectId] = useState<string | null>(null);
+  const [correctCost, setCorrectCost] = useState('');
+  const [correctNote, setCorrectNote] = useState('');
+  const [correctSaving, setCorrectSaving] = useState(false);
+  const [correctError, setCorrectError] = useState('');
 
   async function loadBatches(spId?: string) {
     setLoading(true);
@@ -116,9 +134,19 @@ export default function SourcingBatchesPage() {
     }
   }
 
+  async function loadOpeningItems() {
+    try {
+      const { data } = await adminApi.get('/inventory/opening-items');
+      setOpeningItems(data);
+    } catch {
+      // 조회 실패 시 무시 (배치 목록에는 영향 없음)
+    }
+  }
+
   useEffect(() => {
     adminApi.get('/sourcing-products').then(({ data }) => setProducts(data));
     loadBatches();
+    loadOpeningItems();
   }, []);
 
   function handleFilterChange(id: string) {
@@ -168,6 +196,24 @@ export default function SourcingBatchesPage() {
     }
   }
 
+  async function handleCorrectCost() {
+    if (!correctId || !correctCost || !correctNote.trim()) return;
+    setCorrectSaving(true); setCorrectError('');
+    try {
+      await adminApi.patch(`/inventory/receipt-items/${correctId}/correct-cost`, {
+        unitCostKrw: Number(correctCost),
+        note: correctNote.trim(),
+      });
+      setCorrectId(null); setCorrectCost(''); setCorrectNote('');
+      loadBatches(filterProductId || undefined);
+      loadOpeningItems();
+    } catch (e: any) {
+      setCorrectError(e?.response?.data?.message ?? '원가 보정 오류');
+    } finally {
+      setCorrectSaving(false);
+    }
+  }
+
   async function handleConfirm() {
     if (!confirmId || !confirmQty) return;
     try {
@@ -193,6 +239,53 @@ export default function SourcingBatchesPage() {
           <Plus size={15} /> 신규 배치
         </button>
       </div>
+
+      {/* OPENING 원가 미확정 항목 */}
+      {openingItems.filter((o) => o.isUnknownCost).length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold text-orange-800">OPENING 원가 미확정 항목</span>
+            <span className="text-xs bg-orange-200 text-orange-700 px-2 py-0.5 rounded-full">
+              {openingItems.filter((o) => o.isUnknownCost).length}건
+            </span>
+          </div>
+          <p className="text-xs text-orange-700">기존 재고 전환 시 원가를 알 수 없었던 항목입니다. 실제 원가를 확인하고 보정하세요.</p>
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-orange-600 border-b border-orange-200">
+                <th className="pb-1 font-medium">상품명</th>
+                <th className="pb-1 font-medium text-right">가용재고</th>
+                <th className="pb-1 font-medium text-right">예약중</th>
+                <th className="pb-1 font-medium text-right">출고완료</th>
+                <th className="pb-1 font-medium"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {openingItems.filter((o) => o.isUnknownCost).map((o) => (
+                <tr key={o.id} className="border-b border-orange-100">
+                  <td className="py-2 text-gray-800">{o.product?.name ?? o.productId}</td>
+                  <td className="py-2 text-right text-gray-600">{o.quantityAvailable}개</td>
+                  <td className="py-2 text-right text-gray-600">{o.quantityReserved}개</td>
+                  <td className="py-2 text-right text-gray-600">{o.quantityShipped}개</td>
+                  <td className="py-2 text-right">
+                    <button
+                      onClick={() => {
+                        setCorrectId(o.id);
+                        setCorrectCost('');
+                        setCorrectNote('');
+                        setCorrectError('');
+                      }}
+                      className="text-xs bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700"
+                    >
+                      원가 보정
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* 필터 */}
       <div className="flex items-center gap-3">
@@ -257,6 +350,52 @@ export default function SourcingBatchesPage() {
             <input type="number" min="1" className={inputClass + ' w-40'} value={confirmQty} onChange={(e) => setConfirmQty(e.target.value)} placeholder="입고 수량" />
             <button onClick={handleConfirm} className="bg-green-600 text-white text-sm px-4 py-2 rounded-lg hover:bg-green-700">확정</button>
             <button onClick={() => { setConfirmId(null); setConfirmQty(''); }} className="text-sm px-4 py-2 border border-gray-200 rounded-lg text-gray-600">취소</button>
+          </div>
+        </div>
+      )}
+
+      {/* 원가 보정 모달 */}
+      {correctId && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 space-y-3">
+          <h2 className="font-semibold text-orange-800">OPENING 원가 보정</h2>
+          <p className="text-sm text-orange-700">
+            원가 미확정 배치의 실제 원가를 최초 확정합니다. 확정 후에는 이 기능으로 재수정할 수 없습니다.
+          </p>
+          {correctError && <p className="text-sm text-red-600">{correctError}</p>}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-orange-700 w-24 shrink-0">실제 원가 (원)</label>
+              <input
+                type="number"
+                min="0"
+                className={inputClass + ' w-48'}
+                value={correctCost}
+                onChange={(e) => setCorrectCost(e.target.value)}
+                placeholder="예: 15000"
+              />
+            </div>
+            <div className="flex items-start gap-2">
+              <label className="text-sm text-orange-700 w-24 shrink-0 mt-2">보정 사유 *</label>
+              <textarea
+                className={inputClass + ' min-h-[60px]'}
+                value={correctNote}
+                onChange={(e) => setCorrectNote(e.target.value)}
+                placeholder="원가 확정 근거 (공급사 세금계산서 수취, 정산 완료 등)"
+              />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button
+              onClick={() => { setCorrectId(null); setCorrectCost(''); setCorrectNote(''); setCorrectError(''); }}
+              className="text-sm px-4 py-2 border border-gray-200 rounded-lg text-gray-600"
+            >취소</button>
+            <button
+              onClick={handleCorrectCost}
+              disabled={correctSaving || !correctCost || !correctNote.trim()}
+              className="text-sm px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+            >
+              {correctSaving ? '처리 중...' : '원가 확정'}
+            </button>
           </div>
         </div>
       )}
@@ -396,6 +535,24 @@ export default function SourcingBatchesPage() {
                                   <span className="text-xs text-yellow-600">※ 입고 확정 전에 설정 필요</span>
                                 )}
                               </div>
+                              {b.receiptItem?.isUnknownCost === true && b.receiptItem?.isOpening === true && (
+                                <div className="mt-3 pt-3 border-t border-orange-200">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs text-orange-600 font-medium">원가 미확정 (OPENING 배치)</span>
+                                    <button
+                                      onClick={() => {
+                                        setCorrectId(b.receiptItem!.id);
+                                        setCorrectCost('');
+                                        setCorrectNote('');
+                                        setCorrectError('');
+                                      }}
+                                      className="text-xs bg-orange-600 text-white px-3 py-1 rounded hover:bg-orange-700"
+                                    >
+                                      원가 보정
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
