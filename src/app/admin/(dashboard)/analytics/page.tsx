@@ -6,12 +6,17 @@ import { TrendingUp, TrendingDown, Coins, Users } from 'lucide-react';
 
 interface Analytics {
   totalRevenue: number;
-  deliveredRevenue: number;
+  confirmedRevenue: number;
   totalCost: number;
   netProfit: number;
   marginRate: number;
   totalPointsIssued: number;
   totalPointsUsed: number;
+  unpaidOrderCount: number;
+  unpaidOrderAmount: number;
+  uncostedOrderCount: number;
+  pendingConfirmedRevenue: number;
+  pendingConfirmedOrderCount: number;
   monthlyRevenue: { month: string; revenue: number; cost: number; profit: number }[];
   topPointUsers: { id: string; name: string; email: string; balance: number; totalEarned: number }[];
 }
@@ -91,9 +96,9 @@ export default function AnalyticsPage() {
               icon={TrendingUp}
             />
             <KpiCard
-              label="배송완료 매출"
-              value={`${data.deliveredRevenue.toLocaleString()}원`}
-              sub="배송완료 기준"
+              label="구매확정 매출"
+              value={`${data.confirmedRevenue.toLocaleString()}원`}
+              sub="순수익 계산 기준"
               color="bg-indigo-500"
               icon={TrendingUp}
             />
@@ -112,6 +117,34 @@ export default function AnalyticsPage() {
               icon={TrendingUp}
             />
           </div>
+
+          {/* 미입금 / 원가미입력 알림 */}
+          {(data.unpaidOrderCount > 0 || data.uncostedOrderCount > 0 || data.pendingConfirmedOrderCount > 0) && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {data.unpaidOrderCount > 0 && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm">
+                  <p className="font-semibold text-amber-800">⏳ 미입금 주문 {data.unpaidOrderCount}건</p>
+                  <p className="mt-0.5 text-xs text-amber-600">
+                    무통장/가상계좌 미완료 — {data.unpaidOrderAmount.toLocaleString()}원 대기 중
+                  </p>
+                </div>
+              )}
+              {data.uncostedOrderCount > 0 && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm">
+                  <p className="font-semibold text-rose-800">⚠️ 원가 미입력 주문 {data.uncostedOrderCount}건</p>
+                  <p className="mt-0.5 text-xs text-rose-600">출고 이후 주문 중 원가 미확정 건 — 구매확정 시 순수익 집계에서 제외됩니다</p>
+                </div>
+              )}
+              {data.pendingConfirmedOrderCount > 0 && (
+                <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm">
+                  <p className="font-semibold text-rose-800">📊 원가 미확정 구매확정 주문 {data.pendingConfirmedOrderCount}건</p>
+                  <p className="mt-0.5 text-xs text-rose-600">
+                    {data.pendingConfirmedRevenue.toLocaleString()}원 — 순수익 집계에서 제외됨 (원가 입력 시 자동 반영)
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 월별 매출 바 차트 */}
           <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">

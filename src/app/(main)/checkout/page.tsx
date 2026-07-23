@@ -528,8 +528,10 @@ function CheckoutInner() {
                 ))}
               </div>
               {paymentMethod === 'BANK_TRANSFER' && (
-                <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
-                  주문 완료 후 안내되는 계좌로 입금하시면, 관리자가 확인 후 주문을 처리합니다.
+                <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-700 space-y-1">
+                  <p className="font-medium">⚠️ 주문 후 24시간 내 입금이 확인되지 않으면 주문이 자동 취소됩니다.</p>
+                  <p>주문 완료 후 안내되는 계좌로 입금하시면 관리자가 확인 후 처리합니다.</p>
+                  <p>예약된 재고·사용 포인트·쿠폰은 자동 취소 시 복구됩니다.</p>
                 </div>
               )}
               {paymentMethod === 'VIRTUAL_ACCOUNT' && (

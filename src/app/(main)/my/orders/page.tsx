@@ -184,7 +184,7 @@ export default function OrdersPage() {
       ) : (
         <div className="space-y-4">
           {filtered.map((order) => {
-            const isBankPending = order.status === 'PENDING' && order.paymentMethod === 'BANK_TRANSFER';
+            const isBankPending = order.status === 'PENDING' && (order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'VIRTUAL_ACCOUNT');
             const st = statusLabels[order.status] ?? { label: order.status, color: 'text-gray-600 bg-gray-50' };
             return (
               <div key={order.id} className="rounded-xl border border-gray-200 bg-white">
@@ -210,9 +210,18 @@ export default function OrdersPage() {
                   </div>
                 </Link>
 
-                {/* 무통장 입금 대기 중인 경우 계좌 보기 버튼 */}
+                {/* 무통장 입금 대기 중인 경우 계좌 보기 버튼 + 입금 마감 */}
                 {isBankPending && (
-                  <div className="px-4 pb-4 -mt-1">
+                  <div className="px-4 pb-4 -mt-1 space-y-2">
+                    {order.paymentDueAt && (
+                      <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700">
+                        ⏰ 입금기한:{' '}
+                        <span className="font-semibold">
+                          {new Date(order.paymentDueAt).toLocaleString('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}까지
+                        </span>
+                        {' '}— 기한 초과 시 자동 취소
+                      </div>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

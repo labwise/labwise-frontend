@@ -63,6 +63,8 @@ export interface Order {
   shippedAt?: string;
   deliveredAt?: string;
   cancelledAt?: string;
+  paymentDueAt?: string;
+  autoCancelledAt?: string;
   items: OrderItem[];
   createdAt: string;
 }

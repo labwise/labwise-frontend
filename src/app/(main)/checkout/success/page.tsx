@@ -22,6 +22,7 @@ function SuccessContent() {
   const [amount, setAmount] = useState(0);
   const [copied, setCopied] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [paymentDue, setPaymentDue] = useState<string | null>(null);
 
   useEffect(() => {
     const paymentKey = searchParams.get('paymentKey');
@@ -32,7 +33,13 @@ function SuccessContent() {
     if (method === 'BANK_TRANSFER') {
       clearCart();
       setAmount(Number(amountStr));
+      setOrderId(orderId);
       api.get('/payments/bank-info').then(({ data }) => setBankInfo(data)).catch(() => {});
+      if (orderId) {
+        api.get(`/orders/${orderId}`).then(({ data }) => {
+          if (data.paymentDueAt) setPaymentDue(data.paymentDueAt);
+        }).catch(() => {});
+      }
       setStatus('bank_transfer');
       return;
     }
@@ -122,11 +129,22 @@ function SuccessContent() {
 
   if (status === 'bank_transfer') {
     const donationAmt = Math.floor(amount * 0.015);
+    const dueDateStr = paymentDue
+      ? new Date(paymentDue).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+      : null;
     return (
       <div className="flex min-h-[50vh] items-center justify-center px-4">
         <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 text-center shadow-sm">
           <Clock className="mx-auto mb-4 h-16 w-16 text-amber-500" />
           <h1 className="mb-2 text-xl font-bold text-gray-900">주문이 접수되었습니다</h1>
+          {dueDateStr ? (
+            <div className="mb-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm">
+              <p className="font-semibold text-red-700">⏰ 입금기한: {dueDateStr}까지</p>
+              <p className="mt-1 text-xs text-red-500">기한 내 입금이 확인되지 않으면 주문이 자동 취소됩니다.</p>
+            </div>
+          ) : (
+            <p className="mb-4 text-sm text-amber-600 font-medium">주문 후 24시간 내 입금이 확인되지 않으면 자동 취소됩니다.</p>
+          )}
           <p className="mb-6 text-sm text-gray-500">아래 계좌로 입금 후 관리자가 확인하면 처리됩니다.</p>
           {donationAmt > 0 && (
             <div className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">

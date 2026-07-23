@@ -9,7 +9,7 @@ type Currency = 'CNY' | 'USD' | 'JPY' | 'KRW';
 const CURRENCY_LABEL: Record<Currency, string> = {
   CNY: '중국 위안 (CNY)',
   USD: '미국 달러 (USD)',
-  JPY: '일본 엔 (JPY, 100엔 기준)',
+  JPY: '일본 엔 (JPY)',
   KRW: '원화 (KRW, 환율 미적용)',
 };
 

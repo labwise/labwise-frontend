@@ -86,9 +86,20 @@ export default function OrderDetailPage() {
   const addr = order.shippingAddress;
   const canCancel = order.status === 'PENDING' || order.status === 'PAID';
   const canRefund = order.status === 'DELIVERED' || order.status === 'CONFIRMED';
+  const isBankPending = order.status === 'PENDING' && (order.paymentMethod === 'BANK_TRANSFER' || order.paymentMethod === 'VIRTUAL_ACCOUNT');
 
   return (
     <div className="space-y-4">
+      {/* 무통장 입금 마감 배너 */}
+      {isBankPending && order.paymentDueAt && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm">
+          <p className="font-semibold text-red-700">
+            ⏰ 입금기한:{' '}
+            {new Date(order.paymentDueAt).toLocaleString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })}까지
+          </p>
+          <p className="mt-0.5 text-xs text-red-500">기한 내 입금이 확인되지 않으면 주문이 자동 취소되고 예약된 재고·포인트·쿠폰이 복구됩니다.</p>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <Link href="/my/orders" className="flex items-center gap-1 text-sm text-gray-500 hover:text-blue-600">
           <ChevronLeft className="h-4 w-4" /> 주문 목록

@@ -26,6 +26,8 @@ interface ProfitSummary {
   jackpotDonationCost: number;
   netProfit: number;
   marginRate: number;
+  pendingRevenue?: number;
+  pendingOrderCount?: number;
 }
 
 interface Stats {
@@ -34,12 +36,15 @@ interface Stats {
   totalRevenue: number;
   pendingOrders: number;
   totalProducts: number;
+  unpaidOrderCount?: number;
+  unpaidOrderAmount?: number;
   byStatus?: {
     PENDING: number;
     PAID: number;
     PREPARING: number;
     SHIPPED: number;
     DELIVERED: number;
+    CONFIRMED: number;
     CANCELLED: number;
     REFUNDED: number;
   };
@@ -121,6 +126,24 @@ export default function DashboardPage() {
               {missingLegalFields.join(', ')} —{' '}
               <Link href="/admin/site-settings" className="font-medium underline hover:text-amber-900">
                 사이트 설정에서 입력하기
+              </Link>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 미입금 주문 알림 */}
+      {(stats.unpaidOrderCount ?? 0) > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+          <AlertTriangle className="mt-0.5 h-5 w-5 flex-shrink-0 text-amber-500" />
+          <div className="text-sm">
+            <p className="font-medium text-amber-800">
+              미입금 주문 {stats.unpaidOrderCount}건 ({(stats.unpaidOrderAmount ?? 0).toLocaleString()}원)
+            </p>
+            <p className="mt-0.5 text-amber-700">
+              무통장/가상계좌 입금 대기 중 —{' '}
+              <Link href="/admin/orders?status=PENDING" className="font-medium underline hover:text-amber-900">
+                주문 관리에서 확인하기
               </Link>
             </p>
           </div>
@@ -253,6 +276,11 @@ export default function DashboardPage() {
           <p className="border-t border-gray-100 px-5 py-3 text-xs text-gray-400">
             PG 수수료는 결제사에서 거래별 수수료를 제공하지 않아 추정 요율로 계산됩니다. 원가는 상품별 공급가(costPrice)가 입력된 항목만 반영됩니다 — 원가 계산기에서 상품을 연동해두면 자동 반영됩니다.
           </p>
+          {(stats.profitSummary.pendingOrderCount ?? 0) > 0 && (
+            <p className="rounded-b-xl border-t border-rose-100 bg-rose-50 px-5 py-3 text-xs text-rose-600">
+              ⚠️ 원가 미확정 구매확정 주문 {stats.profitSummary.pendingOrderCount}건 ({(stats.profitSummary.pendingRevenue ?? 0).toLocaleString()}원)은 순수익 집계에서 제외됩니다. 원가를 입력하면 자동으로 포함됩니다.
+            </p>
+          )}
         </div>
       )}
     </div>
