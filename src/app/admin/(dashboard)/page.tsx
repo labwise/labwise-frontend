@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import adminApi from '@/lib/admin-api';
-import { Users, ShoppingCart, DollarSign, Package, ChevronRight, AlertTriangle, TrendingUp, Calculator } from 'lucide-react';
+import { Users, ShoppingCart, DollarSign, Package, ChevronRight, AlertTriangle, TrendingUp, Warehouse } from 'lucide-react';
 
 interface SiteConfig {
   companyName?: string; ceoName?: string; businessNumber?: string;
@@ -231,10 +231,10 @@ export default function DashboardPage() {
               <span className="text-xs text-gray-400">구매확정 주문 기준</span>
             </div>
             <Link
-              href="/admin/cost-calculator"
+              href="/admin/sourcing/batches"
               className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700"
             >
-              <Calculator size={14} /> 원가 계산기
+              <Warehouse size={14} /> 소싱 배치
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-6 px-5 py-5 md:grid-cols-3">
