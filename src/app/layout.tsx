@@ -20,12 +20,16 @@ export async function generateMetadata(): Promise<Metadata> {
         title: cfg.siteName ? `${cfg.siteName} - 실험실 소모품 전문 쇼핑몰` : '랩와이즈 - 실험실 소모품 전문 쇼핑몰',
         description: '대학교 및 연구기관을 위한 실험실 소모품 전문 쇼핑몰',
         icons: cfg.faviconUrl ? { icon: cfg.faviconUrl } : undefined,
+        // 개발 완료 전까지 검색엔진 노출 차단 — 완료 후 이 필드를 제거할 것.
+        robots: { index: false, follow: false, nocache: true },
       };
     }
   } catch {}
   return {
     title: '랩와이즈 - 실험실 소모품 전문 쇼핑몰',
     description: '대학교 및 연구기관을 위한 실험실 소모품 전문 쇼핑몰',
+    // 개발 완료 전까지 검색엔진 노출 차단 — 완료 후 이 필드를 제거할 것.
+    robots: { index: false, follow: false, nocache: true },
   };
 }
 
