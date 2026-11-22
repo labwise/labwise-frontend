@@ -114,8 +114,8 @@ test('two-entry dump exact roles/env and autorestart checked', () => {
   assert.throws(() => checkDump([api(), front()], SHA, false));
 });
 test('existing frontend dump fingerprint is accepted and unexpected path refused', () => {
-  const previous = { name: 'labwise-frontend', pm_exec_path: '/home/ec2-user/labwise-frontend-standalone/server.js',
-    pm_cwd: '/home/ec2-user/labwise-frontend-standalone' };
+  const previous = { name: 'labwise-web-7c676bc', pm_exec_path: '/home/ec2-user/labwise-frontend-releases/7c676bc/dist/server.js',
+    pm_cwd: '/home/ec2-user/labwise-frontend-releases/7c676bc/dist' };
   checkDump([api(), previous], SHA, false);
   previous.pm_cwd = '/unexpected'; assert.throws(() => checkDump([api(), previous], SHA, false));
 });
@@ -157,4 +157,10 @@ for (const point of ['deleteOld','saveAndVerify']) test('commit holds and keeps 
 test('explicit rollback checks previous health before saving', async () => {
   const { calls, proxy } = ops([]); assert.equal((await rollbackCore(proxy)).result, 'ROLLED_BACK');
   assert.deepEqual(calls.map(x=>x[0]), ['preflight','backupValid','restoreOld','checkOld','saveAndVerify','stage']);
+});
+
+test('production build uses the public HTTPS API for browser social links',()=>{
+ const workflow=fs.readFileSync(path.join(__dirname,'../../.github/workflows/deploy.yml'),'utf8');
+ assert(workflow.includes('NEXT_PUBLIC_API_URL: https://labwise.co.kr/api'));
+ assert(!workflow.includes('NEXT_PUBLIC_API_URL: http://127.0.0.1'));
 });
