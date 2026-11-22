@@ -39,6 +39,17 @@ test('manifest verifies hidden assets, package data and exact file count', () =>
   try { const hash = create(root); assert.equal(verify(root, hash), 6); }
   finally { fs.rmSync(root, { recursive: true }); }
 });
+test('streaming file hashes use exact bytes including the final partial chunk', () => {
+  const root = fixture(), file = path.join(root, 'dist/server.js');
+  try {
+    fs.writeFileSync(file, 'abc'); create(root);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'))).files['dist/server.js'],
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    fs.unlinkSync(path.join(root, 'manifest.json'));
+    const bytes = Buffer.alloc(131_073, 65); fs.writeFileSync(file, bytes); const hash = create(root);
+    bytes[bytes.length - 1] = 66; fs.writeFileSync(file, bytes); assert.throws(() => verify(root, hash));
+  } finally { fs.rmSync(root, { recursive: true }); }
+});
 for (const kind of ['changed', 'added', 'missing', 'manifest', 'env', 'prototype']) test('manifest rejects ' + kind, () => {
   const root = fixture();
   try {
