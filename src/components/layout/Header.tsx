@@ -79,9 +79,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-gray-200 bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-[110px] items-center justify-between">
+        <div className="flex h-20 items-center justify-between sm:h-[110px]">
           <Link href="/" className="flex items-center py-[18px]">
-            <Logo className="h-16 w-auto" />
+            <Logo className="h-10 w-auto sm:h-16" />
           </Link>
 
           <div className="mx-8 hidden flex-1 max-w-lg md:block">
@@ -96,7 +96,7 @@ export function Header() {
             </form>
           </div>
 
-          <nav className="flex items-center gap-2">
+          <nav className="flex shrink-0 items-center gap-1 whitespace-nowrap sm:gap-2">
             <Link href="/cart" className="relative p-2 text-gray-600 hover:text-blue-600">
               <ShoppingCart className="h-6 w-6" />
               {totalItems > 0 && (
@@ -175,10 +175,10 @@ export function Header() {
       {/* Category Navigation */}
       <nav className="border-t border-gray-100 bg-white">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-10 items-center gap-1 text-sm">
+          <div className="flex min-h-10 flex-wrap items-center gap-1 py-1 text-sm whitespace-nowrap">
             <Link
               href="/products"
-              className="px-3 py-1.5 text-gray-600 hover:text-blue-600 rounded-md hover:bg-gray-50"
+              className="shrink-0 px-3 py-1.5 text-gray-600 hover:text-blue-600 rounded-md hover:bg-gray-50"
             >
               전체 상품
             </Link>
@@ -190,9 +190,13 @@ export function Header() {
               return (
               <div
                 key={cat.id}
-                className="relative"
+                className="relative shrink-0"
                 onMouseEnter={() => setOpenMenu(cat.id)}
                 onMouseLeave={() => setOpenMenu(null)}
+                onFocus={() => setOpenMenu(cat.id)}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget)) setOpenMenu(null);
+                }}
               >
                 <Link
                   href={catHref}
@@ -229,14 +233,14 @@ export function Header() {
             {user?.hasPointmallAccess && (
               <Link
                 href="/point-mall"
-                className="ml-2 px-3 py-1.5 font-medium text-blue-600 hover:text-blue-700 rounded-md hover:bg-blue-50"
+                className="ml-2 shrink-0 px-3 py-1.5 font-medium text-blue-600 hover:text-blue-700 rounded-md hover:bg-blue-50"
               >
                 와이즈몰
               </Link>
             )}
 
             {/* 우측 정렬 — 이벤트 | 기부내역 */}
-            <div className="ml-auto flex items-center">
+            <div className="ml-auto flex shrink-0 items-center">
               <Link
                 href="/boards/event"
                 className="px-3 py-1.5 text-gray-500 hover:text-blue-600 rounded-md hover:bg-gray-50"

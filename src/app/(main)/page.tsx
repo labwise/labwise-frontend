@@ -20,22 +20,22 @@ export default function HomePage() {
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
                 <Package className="h-6 w-6 text-blue-600" />
               </div>
-              <h3 className="mb-2 font-semibold text-gray-900">다양한 상품</h3>
-              <p className="text-sm text-gray-500">10,000종 이상의 실험실 소모품을 한 곳에서 주문하세요</p>
+              <h3 className="mb-2 font-semibold text-gray-900">상품 찾기</h3>
+              <p className="text-sm text-gray-500">상품 목록에서 필요한 실험실 소모품을 찾아보세요</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
                 <Shield className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="mb-2 font-semibold text-gray-900">품질 보증</h3>
-              <p className="text-sm text-gray-500">검증된 공급업체의 정품만을 취급합니다</p>
+              <h3 className="mb-2 font-semibold text-gray-900">상품 정보</h3>
+              <p className="text-sm text-gray-500">규격과 구성은 상품 상세에서 확인해 주세요</p>
             </div>
             <div className="rounded-xl border border-gray-200 bg-white p-6 text-center shadow-sm">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-100">
                 <Truck className="h-6 w-6 text-orange-600" />
               </div>
-              <h3 className="mb-2 font-semibold text-gray-900">빠른 배송</h3>
-              <p className="text-sm text-gray-500">당일 주문 시 익일 배송 (5만원 이상 무료)</p>
+              <h3 className="mb-2 font-semibold text-gray-900">배송 안내</h3>
+              <p className="text-sm text-gray-500">배송비와 배송 일정은 주문 전 안내를 확인해 주세요</p>
             </div>
           </div>
         </div>

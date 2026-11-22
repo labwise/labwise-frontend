@@ -306,7 +306,7 @@ export default function RegisterPage() {
                   {...register('phone')}
                   type="tel"
                   placeholder="010-1234-5678"
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <button
                   type="button"
@@ -333,7 +333,7 @@ export default function RegisterPage() {
                     maxLength={6}
                     placeholder="6자리 입력"
                     disabled={otpVerified}
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
+                    className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50"
                   />
                   {!otpVerified && (
                     <button
@@ -364,7 +364,7 @@ export default function RegisterPage() {
                       {...register('postalCode')}
                       readOnly
                       placeholder="우편번호"
-                      className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 focus:outline-none"
+                      className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-gray-50 focus:outline-none"
                     />
                     <button
                       type="button"
