@@ -5,8 +5,22 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { create, verify } = require('./manifest.cjs');
+const { makeInfo, checkInfo } = require('./artifact.cjs');
 const { apiOf, checkNew, checkDump, switchCore, commitCore, rollbackCore, API, API_BASE, RELEASE_BASE, SAFE } = require('./switch.cjs');
 const SHA = '1234567' + 'a'.repeat(33);
+test('artifact source commit, build run, manifest and archive bytes must all match', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lw-web-artifact-'));
+  try {
+    const archive = path.join(root, 'archive.tgz'); fs.writeFileSync(archive, 'compiled-build-once');
+    const info = makeInfo(SHA, '123', 'a'.repeat(64), archive);
+    assert.equal(checkInfo(info, SHA, '123', 'a'.repeat(64), archive), info.archiveSha256);
+    for (const key of ['commit','runId','manifestSha256','archiveSha256']) {
+      assert.throws(() => checkInfo({ ...info, [key]: 'tampered' }, SHA, '123', 'a'.repeat(64), archive));
+    }
+    assert.throws(() => checkInfo({ ...info, extra: 'PRIVATE_SENTINEL' }, SHA, '123', 'a'.repeat(64), archive));
+    fs.writeFileSync(archive, 'different-build'); assert.throws(() => checkInfo(info, SHA, '123', 'a'.repeat(64), archive));
+  } finally { fs.rmSync(root, { recursive: true }); }
+});
 const api = () => ({ name: API, pid: 100, pm2_env: { status: 'online', autorestart: true,
   pm_exec_path: API_BASE + '/releases/a5ec5ca/dist/main.js', pm_cwd: API_BASE, env: { ...SAFE } } });
 const front = () => ({ name: 'labwise-web-1234567', pid: 101, pm2_env: { status: 'online', autorestart: true,
@@ -24,6 +38,17 @@ test('manifest verifies hidden assets, package data and exact file count', () =>
   const root = fixture();
   try { const hash = create(root); assert.equal(verify(root, hash), 6); }
   finally { fs.rmSync(root, { recursive: true }); }
+});
+test('streaming file hashes use exact bytes including the final partial chunk', () => {
+  const root = fixture(), file = path.join(root, 'dist/server.js');
+  try {
+    fs.writeFileSync(file, 'abc'); create(root);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'))).files['dist/server.js'],
+      'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    fs.unlinkSync(path.join(root, 'manifest.json'));
+    const bytes = Buffer.alloc(131_073, 65); fs.writeFileSync(file, bytes); const hash = create(root);
+    bytes[bytes.length - 1] = 66; fs.writeFileSync(file, bytes); assert.throws(() => verify(root, hash));
+  } finally { fs.rmSync(root, { recursive: true }); }
 });
 for (const kind of ['changed', 'added', 'missing', 'manifest', 'env', 'prototype']) test('manifest rejects ' + kind, () => {
   const root = fixture();

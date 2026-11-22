@@ -5,17 +5,22 @@ on:
       operation:
         type: choice
         required: true
-        options: [upload, switch, commit, rollback]
+        options: [build, upload, switch, commit, rollback]
       commit:
         description: Reviewed full frontend commit
         required: true
         type: string
+      build_run_id:
+        description: Successful reviewed build run; required for upload
+        required: false
+        type: string
       manifest_sha256:
-        description: Canonical Linux manifest SHA256; zero hash stops before upload
+        description: Reviewed build artifact manifest SHA256; ignored for build
         required: true
         type: string
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: frontend-release
   cancel-in-progress: false
@@ -24,6 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
+      BUILD_RUN_ID: ${{ inputs.build_run_id }}
       OP: ${{ inputs.operation }}
       COMMIT: ${{ inputs.commit }}
       MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
@@ -33,7 +39,8 @@ jobs:
           set -euo pipefail
           [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]
           [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
-          case "$OP" in upload|switch|commit|rollback) ;; *) exit 2 ;; esac
+          case "$OP" in build|upload|switch|commit|rollback) ;; *) exit 2 ;; esac
+          if [ "$OP" = upload ]; then [[ "$BUILD_RUN_ID" =~ ^[0-9]+$ ]]; fi
           echo "SHORT=${COMMIT:0:7}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
         with:
@@ -48,15 +55,15 @@ jobs:
           echo "SWITCH_B64=$(base64 -w0 scripts/release/switch.cjs)" >> "$GITHUB_ENV"
           echo "SWITCH_SHA=$(sha256sum scripts/release/switch.cjs | cut -d' ' -f1)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
-        if: inputs.operation == 'upload'
+        if: inputs.operation == 'build'
         with:
           node-version: '20'
           cache: npm
       - name: Install locked dependencies (CI only)
-        if: inputs.operation == 'upload'
+        if: inputs.operation == 'build'
         run: npm ci
       - name: Build canonical frontend
-        if: inputs.operation == 'upload'
+        if: inputs.operation == 'build'
         env:
           NEXT_PUBLIC_API_URL: http://127.0.0.1:3000/api
           NEXT_TELEMETRY_DISABLED: '1'
@@ -66,11 +73,46 @@ jobs:
           mkdir -p out
           GOT="$(bash scripts/release/build.sh out/release)"
           echo "manifest sha256: $GOT"
-          [ "$GOT" = "$MANIFEST_SHA256" ] || { echo 'Manifest mismatch; nothing uploaded'; exit 2; }
-          node scripts/release/manifest.cjs verify out/release "$MANIFEST_SHA256"
-          tar -C out -czf "frontend-${SHORT}.tgz" release
-          echo "ARCHIVE_SHA256=$(sha256sum "frontend-${SHORT}.tgz" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          node scripts/release/manifest.cjs verify out/release "$GOT"
+          tar --hard-dereference -C out -czf "frontend-${SHORT}.tgz" release
+          node scripts/release/artifact.cjs create release-info.json "$COMMIT" "$GITHUB_RUN_ID" "$GOT" "frontend-${SHORT}.tgz"
+      - name: Retain exact verified build once
+        if: inputs.operation == 'build'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-${{ inputs.commit }}
+          retention-days: 1
+          if-no-files-found: error
+          path: |
+            frontend-${{ env.SHORT }}.tgz
+            release-info.json
+      - name: Download the reviewed build without rebuilding
+        if: inputs.operation == 'upload'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-${{ inputs.commit }}
+          run-id: ${{ inputs.build_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: incoming
+      - name: Verify build provenance and complete payload before transfer
+        if: inputs.operation == 'upload'
+        run: |
+          set -euo pipefail
+          ARCHIVE_SHA256="$(node scripts/release/artifact.cjs verify incoming/release-info.json "$COMMIT" "$BUILD_RUN_ID" "$MANIFEST_SHA256" "incoming/frontend-${SHORT}.tgz")"
+          mkdir -p out/verify
+          tar -tzf "incoming/frontend-${SHORT}.tgz" > out/archive-index
+          while IFS= read -r ENTRY; do
+            case "$ENTRY" in release|release/|release/*) ;; *) exit 2 ;; esac
+            case "/$ENTRY/" in *'/../'*|*'/./'*) exit 2 ;; esac
+          done < out/archive-index
+          tar -tvzf "incoming/frontend-${SHORT}.tgz" > out/archive-types
+          while IFS= read -r ENTRY; do [[ "$ENTRY" =~ ^[-d][rwxStTs-]{9}[[:space:]] ]]; done < out/archive-types
+          tar --no-same-owner -xzf "incoming/frontend-${SHORT}.tgz" -C out/verify
+          node scripts/release/manifest.cjs verify out/verify/release "$MANIFEST_SHA256"
+          cp "incoming/frontend-${SHORT}.tgz" "frontend-${SHORT}.tgz"
+          echo "ARCHIVE_SHA256=$ARCHIVE_SHA256" >> "$GITHUB_ENV"
       - name: Preflight destination or perform separate manual activation
+        if: inputs.operation != 'build'
         uses: appleboy/ssh-action@v1.0.3
         env:
           CHECK_B64: ${{ env.CHECK_B64 }}
@@ -135,7 +177,7 @@ jobs:
             STAGE="$(mktemp -d "$BASE/.stage-XXXXXX")"
             CLAIMED=0
             cleanup() {
-              rm -f -- "$STAGE/index"
+              rm -f -- "$STAGE/index" "$STAGE/types"
               rmdir "$STAGE" 2>/dev/null || true
               if [ "$CLAIMED" = 1 ]; then rmdir "$DEST" 2>/dev/null || true; fi
             }
@@ -145,7 +187,9 @@ jobs:
               case "$ENTRY" in release|release/|release/*) ;; *) exit 2 ;; esac
               case "/$ENTRY/" in *'/../'*|*'/./'*) exit 2 ;; esac
             done < "$STAGE/index"
-            tar -xzf "$ARCHIVE" -C "$STAGE"
+            tar -tvzf "$ARCHIVE" > "$STAGE/types"
+            while IFS= read -r ENTRY; do [[ "$ENTRY" =~ ^[-d][rwxStTs-]{9}[[:space:]] ]]; done < "$STAGE/types"
+            tar --no-same-owner -xzf "$ARCHIVE" -C "$STAGE"
             [ -f "$STAGE/release/scripts/release/manifest.cjs" ] && [ ! -L "$STAGE/release/scripts/release/manifest.cjs" ]
             [ "$(sha256sum "$STAGE/release/scripts/release/manifest.cjs" | cut -d' ' -f1)" = "$CHECK_SHA" ]
             node "$STAGE/release/scripts/release/manifest.cjs" verify "$STAGE/release" "$MANIFEST_SHA256"

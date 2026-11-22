@@ -3,6 +3,19 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
+function fileDigest(file) {
+  const fd = fs.openSync(file, fs.constants.O_RDONLY | fs.constants.O_NOFOLLOW);
+  try {
+    if (!fs.fstatSync(fd).isFile()) throw new Error('not_regular');
+    const hash = crypto.createHash('sha256'), chunk = Buffer.allocUnsafe(64 * 1024);
+    for (;;) {
+      const size = fs.readSync(fd, chunk, 0, chunk.length, null);
+      if (!size) break;
+      hash.update(chunk.subarray(0, size));
+    }
+    return hash.digest('hex');
+  } finally { fs.closeSync(fd); }
+}
 function files(root) {
   if (fs.realpathSync(root) !== root) throw new Error('root_link');
   const result = Object.create(null);
@@ -14,7 +27,7 @@ function files(root) {
       const full = path.join(dir, name), stat = fs.lstatSync(full);
       if (stat.isSymbolicLink() || fs.realpathSync(full) !== full) throw new Error('link');
       if (stat.isDirectory()) walk(full, relative);
-      else if (stat.isFile()) result[relative] = digest(fs.readFileSync(full));
+      else if (stat.isFile()) result[relative] = fileDigest(full);
       else throw new Error('not_regular');
     }
   }
