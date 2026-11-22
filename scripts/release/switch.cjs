@@ -313,7 +313,8 @@ async function run() {
     else if (mode === 'commit') result = await commitCore(ops);
     else result = await rollbackCore(ops);
     process.stdout.write(JSON.stringify(result) + '\n');
-    if (!['PREFLIGHT_OK', 'SWITCHED', 'COMMITTED', 'ROLLED_BACK'].includes(result.result)) process.exitCode = 2;
+    const expectedResult = { preflight: 'PREFLIGHT_OK', switch: 'SWITCHED', commit: 'COMMITTED', rollback: 'ROLLED_BACK' }[mode];
+    if (result.result !== expectedResult) process.exitCode = 2;
   } finally { clearTimeout(timer); pm2.disconnect(); fs.rmdirSync(lock); }
 }
 module.exports = { apiOf, checkNew, checkDump, fingerprint, switchCore, commitCore, rollbackCore, API, API_BASE, RELEASE_BASE, SAFE };
