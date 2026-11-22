@@ -9,7 +9,7 @@ const { verify, digest } = require('./manifest.cjs');
 const API = 'labwise-api-a5ec5ca';
 const API_BASE = '/home/ec2-user/labwise-backend';
 const RELEASE_BASE = '/home/ec2-user/labwise-frontend-releases';
-const OLD_FP = '36f7d12094afb7d4';
+const OLD_FP = 'f54238cfc3092593';
 const SAFE = { NODE_ENV: 'production', DB_SYNCHRONIZE: 'false', AUTO_CANCEL_CRON_ENABLED: 'false', DORMANT_CRON_ENABLED: 'false', PORT: '3000' };
 let phase = 'setup';
 const pe = row => row.pm2_env || row;

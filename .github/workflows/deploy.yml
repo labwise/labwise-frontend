@@ -65,7 +65,7 @@ jobs:
       - name: Build canonical frontend
         if: inputs.operation == 'build'
         env:
-          NEXT_PUBLIC_API_URL: http://127.0.0.1:3000/api
+          NEXT_PUBLIC_API_URL: https://labwise.co.kr/api
           NEXT_TELEMETRY_DISABLED: '1'
         run: |
           set -euo pipefail
