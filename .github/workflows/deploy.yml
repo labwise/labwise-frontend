@@ -1,55 +1,156 @@
-name: Deploy Frontend to EC2
-
+name: Frontend release (manual)
 on:
-  push:
-    branches: [main]
-
+  workflow_dispatch:
+    inputs:
+      operation:
+        type: choice
+        required: true
+        options: [upload, switch, commit, rollback]
+      commit:
+        description: Reviewed full frontend commit
+        required: true
+        type: string
+      manifest_sha256:
+        description: Canonical Linux manifest SHA256; zero hash stops before upload
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: frontend-release
+  cancel-in-progress: false
 jobs:
-  deploy:
+  release:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      OP: ${{ inputs.operation }}
+      COMMIT: ${{ inputs.commit }}
+      MANIFEST_SHA256: ${{ inputs.manifest_sha256 }}
     steps:
+      - name: Validate reviewed inputs
+        run: |
+          set -euo pipefail
+          [[ "$COMMIT" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          case "$OP" in upload|switch|commit|rollback) ;; *) exit 2 ;; esac
+          echo "SHORT=${COMMIT:0:7}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - name: Pin helper bytes to the reviewed checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$COMMIT"
+          echo "CHECK_B64=$(base64 -w0 scripts/release/manifest.cjs)" >> "$GITHUB_ENV"
+          echo "CHECK_SHA=$(sha256sum scripts/release/manifest.cjs | cut -d' ' -f1)" >> "$GITHUB_ENV"
+          echo "SWITCH_B64=$(base64 -w0 scripts/release/switch.cjs)" >> "$GITHUB_ENV"
+          echo "SWITCH_SHA=$(sha256sum scripts/release/switch.cjs | cut -d' ' -f1)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        if: inputs.operation == 'upload'
         with:
           node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
+          cache: npm
+      - name: Install locked dependencies (CI only)
+        if: inputs.operation == 'upload'
         run: npm ci
-
-      - name: Build
-        run: npm run build
+      - name: Build canonical frontend
+        if: inputs.operation == 'upload'
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-
-      - name: Package standalone build
+          NEXT_PUBLIC_API_URL: http://127.0.0.1:3000/api
+          NEXT_TELEMETRY_DISABLED: '1'
         run: |
-          cp -r public .next/standalone/public
-          cp -r .next/static .next/standalone/.next/static
-          tar -czf frontend.tar.gz -C .next/standalone .
-
-      - name: Upload to EC2
+          set -euo pipefail
+          node --test scripts/release/release.spec.cjs
+          mkdir -p out
+          GOT="$(bash scripts/release/build.sh out/release)"
+          echo "manifest sha256: $GOT"
+          [ "$GOT" = "$MANIFEST_SHA256" ] || { echo 'Manifest mismatch; nothing uploaded'; exit 2; }
+          node scripts/release/manifest.cjs verify out/release "$MANIFEST_SHA256"
+          tar -C out -czf "frontend-${SHORT}.tgz" release
+          echo "ARCHIVE_SHA256=$(sha256sum "frontend-${SHORT}.tgz" | cut -d' ' -f1)" >> "$GITHUB_ENV"
+      - name: Preflight destination or perform separate manual activation
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          CHECK_B64: ${{ env.CHECK_B64 }}
+          CHECK_SHA: ${{ env.CHECK_SHA }}
+          SWITCH_B64: ${{ env.SWITCH_B64 }}
+          SWITCH_SHA: ${{ env.SWITCH_SHA }}
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_KEY }}
+          script_stop: true
+          command_timeout: 4m
+          envs: CHECK_B64,CHECK_SHA,SWITCH_B64,SWITCH_SHA,COMMIT,MANIFEST_SHA256,OP
+          script: |
+            set -euo pipefail
+            umask 077
+            case "$OP" in upload) MODE=preflight ;; switch|commit|rollback) MODE="$OP" ;; *) exit 2 ;; esac
+            D="$(mktemp -d /tmp/lw-front-release.XXXXXX)"
+            trap 'rm -f -- "$D/manifest.cjs" "$D/switch.cjs"; rmdir "$D" 2>/dev/null || true' EXIT
+            printf '%s' "$CHECK_B64" | base64 -d > "$D/manifest.cjs"
+            printf '%s' "$SWITCH_B64" | base64 -d > "$D/switch.cjs"
+            [ "$(sha256sum "$D/manifest.cjs" | cut -d' ' -f1)" = "$CHECK_SHA" ]
+            [ "$(sha256sum "$D/switch.cjs" | cut -d' ' -f1)" = "$SWITCH_SHA" ]
+            LW_PM2_ROOT="$(dirname "$(dirname "$(readlink -f "$(command -v pm2)")")")"
+            export LW_PM2_ROOT
+            node "$D/switch.cjs" "$MODE" "$COMMIT" "$MANIFEST_SHA256"
+      - name: Upload verified archive to incoming only
+        if: inputs.operation == 'upload'
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
-          source: frontend.tar.gz
-          target: /home/ec2-user/
-
-      - name: Restart on EC2
+          source: frontend-${{ env.SHORT }}.tgz
+          target: /home/ec2-user/frontend-release-incoming/${{ github.run_id }}
+      - name: Verify archive and publish immutable release only
+        if: inputs.operation == 'upload'
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          SHORT: ${{ env.SHORT }}
+          RUN_ID: ${{ github.run_id }}
+          ARCHIVE_SHA256: ${{ env.ARCHIVE_SHA256 }}
+          CHECK_SHA: ${{ env.CHECK_SHA }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ec2-user
           key: ${{ secrets.EC2_KEY }}
+          script_stop: true
+          envs: SHORT,RUN_ID,ARCHIVE_SHA256,CHECK_SHA,MANIFEST_SHA256
           script: |
-            rm -rf ~/labwise-frontend-standalone
-            mkdir -p ~/labwise-frontend-standalone
-            tar -xzf ~/frontend.tar.gz -C ~/labwise-frontend-standalone
-            rm ~/frontend.tar.gz
-            pm2 delete labwise-frontend 2>/dev/null || true
-            cd ~/labwise-frontend-standalone && PORT=3001 pm2 start server.js --name labwise-frontend
-            pm2 save
+            set -euo pipefail
+            umask 077
+            [[ "$SHORT" =~ ^[0-9a-f]{7}$ && "$RUN_ID" =~ ^[0-9]+$ && "$ARCHIVE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+            BASE=/home/ec2-user/labwise-frontend-releases
+            if [ ! -e "$BASE" ]; then mkdir -m 700 -- "$BASE"; fi
+            [ -d "$BASE" ] && [ ! -L "$BASE" ] && [ "$(realpath "$BASE")" = "$BASE" ]
+            DEST="$BASE/$SHORT"
+            [ ! -e "$DEST" ] || { echo '{"result":"HOLD","reason":"release_exists"}'; exit 2; }
+            ARCHIVE="/home/ec2-user/frontend-release-incoming/$RUN_ID/frontend-$SHORT.tgz"
+            [ -f "$ARCHIVE" ] && [ ! -L "$ARCHIVE" ]
+            [ "$(sha256sum "$ARCHIVE" | cut -d' ' -f1)" = "$ARCHIVE_SHA256" ]
+            STAGE="$(mktemp -d "$BASE/.stage-XXXXXX")"
+            CLAIMED=0
+            cleanup() {
+              rm -f -- "$STAGE/index"
+              rmdir "$STAGE" 2>/dev/null || true
+              if [ "$CLAIMED" = 1 ]; then rmdir "$DEST" 2>/dev/null || true; fi
+            }
+            trap cleanup EXIT
+            tar -tzf "$ARCHIVE" > "$STAGE/index"
+            while IFS= read -r ENTRY; do
+              case "$ENTRY" in release|release/|release/*) ;; *) exit 2 ;; esac
+              case "/$ENTRY/" in *'/../'*|*'/./'*) exit 2 ;; esac
+            done < "$STAGE/index"
+            tar -xzf "$ARCHIVE" -C "$STAGE"
+            [ -f "$STAGE/release/scripts/release/manifest.cjs" ] && [ ! -L "$STAGE/release/scripts/release/manifest.cjs" ]
+            [ "$(sha256sum "$STAGE/release/scripts/release/manifest.cjs" | cut -d' ' -f1)" = "$CHECK_SHA" ]
+            node "$STAGE/release/scripts/release/manifest.cjs" verify "$STAGE/release" "$MANIFEST_SHA256"
+            mkdir -- "$DEST" || { echo '{"result":"HOLD","reason":"release_exists"}'; exit 2; }
+            CLAIMED=1
+            mv -T -- "$STAGE/release" "$DEST"
+            CLAIMED=0
+            echo "FRONTEND_UPLOAD_VERIFIED $SHORT"
