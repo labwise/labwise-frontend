@@ -22,7 +22,7 @@ test('artifact source commit, build run, manifest and archive bytes must all mat
   } finally { fs.rmSync(root, { recursive: true }); }
 });
 const api = () => ({ name: API, pid: 100, pm2_env: { status: 'online', autorestart: true,
-  pm_exec_path: API_BASE + '/releases/a5ec5ca/dist/main.js', pm_cwd: API_BASE, env: { ...SAFE } } });
+  pm_exec_path: API_BASE + '/releases/80e8a9b/dist/main.js', pm_cwd: API_BASE, env: { ...SAFE } } });
 const front = () => ({ name: 'labwise-web-1234567', pid: 101, pm2_env: { status: 'online', autorestart: true,
   pm_exec_path: RELEASE_BASE + '/1234567/dist/server.js', pm_cwd: RELEASE_BASE + '/1234567/dist',
   env: { NODE_ENV: 'production', HOSTNAME: '127.0.0.1', PORT: '3001' } } });
@@ -114,8 +114,8 @@ test('two-entry dump exact roles/env and autorestart checked', () => {
   assert.throws(() => checkDump([api(), front()], SHA, false));
 });
 test('existing frontend dump fingerprint is accepted and unexpected path refused', () => {
-  const previous = { name: 'labwise-web-7c676bc', pm_exec_path: '/home/ec2-user/labwise-frontend-releases/7c676bc/dist/server.js',
-    pm_cwd: '/home/ec2-user/labwise-frontend-releases/7c676bc/dist' };
+  const previous = { name: 'labwise-web-d717aa5', pm_exec_path: '/home/ec2-user/labwise-frontend-releases/d717aa5/dist/server.js',
+    pm_cwd: '/home/ec2-user/labwise-frontend-releases/d717aa5/dist' };
   checkDump([api(), previous], SHA, false);
   previous.pm_cwd = '/unexpected'; assert.throws(() => checkDump([api(), previous], SHA, false));
 });
@@ -163,4 +163,31 @@ test('production build uses the public HTTPS API for browser social links',()=>{
  const workflow=fs.readFileSync(path.join(__dirname,'../../.github/workflows/deploy.yml'),'utf8');
  assert(workflow.includes('NEXT_PUBLIC_API_URL: https://labwise.co.kr/api'));
  assert(!workflow.includes('NEXT_PUBLIC_API_URL: http://127.0.0.1'));
+});
+
+test('current backend identity is pinned independently of fixture exports',()=>{
+  assert.equal(API,'labwise-api-80e8a9b');
+  const row=api();assert.equal(row.pm2_env.pm_exec_path,API_BASE+'/releases/80e8a9b/dist/main.js');
+  assert.equal(apiOf([row]).pid,100);
+  const legacy=structuredClone(row);legacy.name='labwise-api-a5ec5ca';legacy.pm2_env.pm_exec_path=API_BASE+'/releases/a5ec5ca/dist/main.js';
+  assert.throws(()=>apiOf([legacy]));assert.throws(()=>checkDump([legacy,front()],SHA,true));
+});
+test('current backend name cannot disguise an older executable',()=>{
+  const row=api();row.pm2_env.pm_exec_path=API_BASE+'/releases/a5ec5ca/dist/main.js';
+  assert.throws(()=>apiOf([row]));assert.throws(()=>checkDump([row,front()],SHA,true));
+});
+test('prior frontend is exactly d717aa5 and an older valid-looking release is refused',()=>{
+  const previous={name:'labwise-web-d717aa5',pm_exec_path:RELEASE_BASE+'/d717aa5/dist/server.js',pm_cwd:RELEASE_BASE+'/d717aa5/dist'};
+  checkDump([api(),previous],SHA,false);
+  const legacy={name:'labwise-web-7c676bc',pm_exec_path:RELEASE_BASE+'/7c676bc/dist/server.js',pm_cwd:RELEASE_BASE+'/7c676bc/dist'};
+  assert.throws(()=>checkDump([api(),legacy],SHA,false));
+  assert.throws(()=>checkDump([api(),{...previous,pm_exec_path:legacy.pm_exec_path}],SHA,false));
+});
+test('candidate build is manual and gates audit/security/types before canonical output',()=>{
+  const workflow=fs.readFileSync(path.join(__dirname,'../../.github/workflows/deploy.yml'),'utf8');
+  assert(workflow.includes('workflow_dispatch:'));assert(!/^\s+push:/m.test(workflow));
+  const start=workflow.indexOf('- name: Build canonical frontend'),end=workflow.indexOf('- name: Retain exact verified build once',start);
+  const block=workflow.slice(start,end);const checks=['npm audit --omit=dev','npm run test:security','node node_modules/typescript/bin/tsc --noEmit --incremental false','node --test scripts/release/release.spec.cjs','bash scripts/release/build.sh out/release'];
+  let last=-1;for(const command of checks){const index=block.indexOf(command);assert(index>last);last=index;}
+  assert(block.includes("if: inputs.operation == 'build'"));
 });
