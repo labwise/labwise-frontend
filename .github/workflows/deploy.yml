@@ -69,6 +69,9 @@ jobs:
           NEXT_TELEMETRY_DISABLED: '1'
         run: |
           set -euo pipefail
+          npm audit --omit=dev
+          npm run test:security
+          node node_modules/typescript/bin/tsc --noEmit --incremental false
           node --test scripts/release/release.spec.cjs
           mkdir -p out
           GOT="$(bash scripts/release/build.sh out/release)"

@@ -6,10 +6,10 @@ const http = require('http');
 const crypto = require('crypto');
 const { spawn, execFileSync } = require('child_process');
 const { verify, digest } = require('./manifest.cjs');
-const API = 'labwise-api-a5ec5ca';
+const API = 'labwise-api-80e8a9b';
 const API_BASE = '/home/ec2-user/labwise-backend';
 const RELEASE_BASE = '/home/ec2-user/labwise-frontend-releases';
-const OLD_FP = 'f54238cfc3092593';
+const OLD_FP = '385f718688e8f7a0';
 const SAFE = { NODE_ENV: 'production', DB_SYNCHRONIZE: 'false', AUTO_CANCEL_CRON_ENABLED: 'false', DORMANT_CRON_ENABLED: 'false', PORT: '3000' };
 let phase = 'setup';
 const pe = row => row.pm2_env || row;
@@ -22,7 +22,7 @@ function apiOf(rows, expectedPid) {
   if (hits.length !== 1) throw new Error('api_count');
   const row = hits[0], p = pe(row);
   if (p.status !== 'online' || p.autorestart !== true || !Number.isInteger(row.pid) || row.pid <= 0 ||
-      p.pm_exec_path !== API_BASE + '/releases/a5ec5ca/dist/main.js' || p.pm_cwd !== API_BASE ||
+      p.pm_exec_path !== API_BASE + '/releases/80e8a9b/dist/main.js' || p.pm_cwd !== API_BASE ||
       Object.entries(SAFE).some(([key, value]) => String(envValue(row, key)) !== value) ||
       (expectedPid !== undefined && row.pid !== expectedPid)) throw new Error('api_changed');
   return row;
@@ -40,7 +40,7 @@ function checkDump(rows, sha, wantNew) {
   if (!Array.isArray(rows) || rows.length !== 2) throw new Error('dump_count');
   // PM2 dumps do not guarantee live PIDs/status. Only persisted API identity/env are checked here.
   const api = rows.find(row => name(row) === API);
-  if (!api || pe(api).pm_exec_path !== API_BASE + '/releases/a5ec5ca/dist/main.js' || pe(api).pm_cwd !== API_BASE ||
+  if (!api || pe(api).pm_exec_path !== API_BASE + '/releases/80e8a9b/dist/main.js' || pe(api).pm_cwd !== API_BASE ||
       pe(api).autorestart !== true || Object.entries(SAFE).some(([k, v]) => String(envValue(api, k)) !== v)) throw new Error('dump_api');
   const rest = rows.filter(row => name(row) !== API);
   if (rest.length !== 1) throw new Error('dump_roles');
