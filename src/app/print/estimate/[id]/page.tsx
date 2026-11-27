@@ -63,6 +63,7 @@ function toKoreanAmount(amount: number): string {
 
 const thLabel = 'border px-2 py-1 text-center text-[12px] font-bold whitespace-nowrap';
 const tdValue = 'border px-2.5 py-1 text-[12px]';
+const tdAmount = 'border px-1.5 py-1 text-right text-[12px] whitespace-nowrap tabular-nums';
 
 export default function EstimatePrintPage() {
   const { id } = useParams<{ id: string }>();
@@ -108,6 +109,10 @@ export default function EstimatePrintPage() {
         }
         @page { size: A4; margin: 12mm; }
         .estimate-sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .estimate-sheet tr { break-inside: avoid; }
+        .estimate-sheet thead { display: table-header-group; }
+        .estimate-sheet .estimate-totals { break-inside: avoid; }
+        .estimate-sheet .estimate-notes { break-inside: avoid; }
       `}</style>
 
       <div className="no-print flex items-center gap-2 border-b bg-gray-50 px-4 py-3">
@@ -228,13 +233,13 @@ export default function EstimatePrintPage() {
         {/* 품목표 */}
         <table className="mt-3 w-full table-fixed border-collapse">
           <colgroup>
-            <col className="w-[6%]" />
-            <col className="w-[34%]" />
-            <col className="w-[8%]" />
-            <col className="w-[13%]" />
-            <col className="w-[13%]" />
-            <col className="w-[12%]" />
+            <col className="w-[5%]" />
+            <col className="w-[28%]" />
+            <col className="w-[7%]" />
+            <col className="w-[15%]" />
+            <col className="w-[15%]" />
             <col className="w-[14%]" />
+            <col className="w-[16%]" />
           </colgroup>
           <thead>
             <tr>
@@ -252,10 +257,10 @@ export default function EstimatePrintPage() {
                   <td className={`${tdValue} text-center`} style={border}>{i + 1}</td>
                   <td className={tdValue} style={border}>{item.productName}</td>
                   <td className={`${tdValue} text-center`} style={border}>{item.quantity}</td>
-                  <td className={`${tdValue} text-right`} style={border}>{formatPrice(item.unitPrice)}</td>
-                  <td className={`${tdValue} text-right`} style={border}>{formatPrice(supply)}</td>
-                  <td className={`${tdValue} text-right`} style={border}>{formatPrice(vat)}</td>
-                  <td className={`${tdValue} text-right font-medium`} style={border}>{formatPrice(item.subtotal)}</td>
+                  <td className={tdAmount} style={border}>{formatPrice(item.unitPrice)}</td>
+                  <td className={tdAmount} style={border}>{formatPrice(supply)}</td>
+                  <td className={tdAmount} style={border}>{formatPrice(vat)}</td>
+                  <td className={`${tdAmount} font-medium`} style={border}>{formatPrice(item.subtotal)}</td>
                 </tr>
               );
             })}
@@ -267,7 +272,8 @@ export default function EstimatePrintPage() {
               </tr>
             ))}
           </tbody>
-          <tfoot>
+          {/* 전체 합계는 tfoot이 아닌 일반 행 묶음: 인쇄 시 쪽마다 반복되지 않고 마지막 품목 뒤에 한 번만 나온다 */}
+          <tbody className="estimate-totals">
             {[
               { k: '소 계 (공급가액)', v: supplyTotal },
               { k: '부가세 (10%)', v: vatTotal },
@@ -277,17 +283,18 @@ export default function EstimatePrintPage() {
                 <th colSpan={5} className={thLabel} style={label}>{row.k}</th>
                 <td
                   colSpan={2}
-                  className={`${tdValue} text-right ${row.strong ? 'font-bold' : ''}`}
+                  className={`${tdAmount} ${row.strong ? 'font-bold' : ''}`}
                   style={{ borderColor: LINE, color: row.strong ? BLUE : undefined }}
                 >
                   {formatPrice(row.v)}
                 </td>
               </tr>
             ))}
-          </tfoot>
+          </tbody>
         </table>
 
-        {/* 안내 사항 */}
+        {/* 안내 사항 + 발행일·상호: 쪽 경계에서 나뉘지 않도록 한 묶음 */}
+        <div className="estimate-notes">
         <p className="mb-1.5 mt-4 text-[13px] font-bold" style={{ color: BLUE }}>안내 사항</p>
         <table className="w-full table-fixed border-collapse">
           <colgroup>
@@ -313,6 +320,7 @@ export default function EstimatePrintPage() {
         <div className="mt-5 text-right text-[13px] text-gray-600">
           <p>{issueDate}</p>
           <p className="mt-1 text-[15px] font-bold text-gray-900">{companyName} (인)</p>
+        </div>
         </div>
       </div>
       </div>
